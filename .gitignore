@@ -16,7 +16,6 @@ specs/
 # AI assistant config & scratch (local only)
 .claude/
 CLAUDE.md
-Test.ipynb
 
 # Competition data — each teammate downloads it themselves (see README.md)
 store-sales-data/
