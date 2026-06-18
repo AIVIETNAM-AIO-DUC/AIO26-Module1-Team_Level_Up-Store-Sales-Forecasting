@@ -73,3 +73,4 @@ store-sales-data/    # raw competition CSVs — ADD YOURSELF (git-ignored)
 - The authoritative shared docs live under `docs/` and `README.md`.
 - Validation uses a single time-respecting 16-day holdout; all models are scored by RMSLE in
   log space with predictions clipped to non-negative.
+  
