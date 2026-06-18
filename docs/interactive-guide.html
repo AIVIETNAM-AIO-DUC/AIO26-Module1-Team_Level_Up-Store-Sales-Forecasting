@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Store Sales Time Series — Interactive Learner's Guide</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2e; --panel2:#1d2740; --ink:#e8edf6; --muted:#9fb0cc;
+    --line:#2a3552; --brand:#5b9dff; --brand2:#7c5bff; --good:#36d399; --warn:#fbbd23;
+    --bad:#f87272; --code:#0b1020; --chip:#223052;
+    --shadow:0 8px 30px rgba(0,0,0,.35);
+    --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:linear-gradient(180deg,#0d1220,#0f1420 40%);
+    color:var(--ink); font:16px/1.65 ui-sans-serif,system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  a{color:var(--brand); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,kbd{font-family:ui-monospace,"Cascadia Code",Consolas,monospace; font-size:.92em}
+
+  /* layout */
+  .wrap{display:grid; grid-template-columns:260px 1fr; gap:0; align-items:start}
+  nav.side{
+    position:sticky; top:0; height:100vh; overflow:auto; padding:22px 16px;
+    background:var(--panel); border-right:1px solid var(--line);
+  }
+  nav.side h1{font-size:15px; margin:0 0 4px; letter-spacing:.2px}
+  nav.side .sub{color:var(--muted); font-size:12px; margin-bottom:16px}
+  nav.side a{
+    display:block; color:var(--muted); padding:6px 10px; border-radius:8px;
+    font-size:13.5px; margin:1px 0; border-left:2px solid transparent;
+  }
+  nav.side a:hover{background:var(--panel2); color:var(--ink); text-decoration:none}
+  nav.side a.active{color:#fff; background:var(--panel2); border-left-color:var(--brand)}
+  nav.side .grp{margin:14px 0 4px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#6b7da0}
+
+  main{padding:0 0 120px}
+  .hero{
+    padding:54px clamp(20px,5vw,64px) 30px; max-width:calc(var(--maxw) + 120px);
+    margin:0 auto;
+  }
+  .hero h2{font-size:clamp(26px,4vw,40px); line-height:1.15; margin:.2em 0 .1em}
+  .hero p.lead{color:var(--muted); font-size:18px; max-width:70ch}
+  .badge-row{display:flex; gap:8px; flex-wrap:wrap; margin:18px 0}
+  .pill{background:var(--chip); border:1px solid var(--line); color:var(--ink);
+    padding:5px 11px; border-radius:999px; font-size:12.5px}
+  .pill b{color:var(--brand)}
+
+  section.block{max-width:var(--maxw); margin:0 auto; padding:34px clamp(20px,5vw,40px);
+    border-top:1px solid var(--line)}
+  section.block > h3{font-size:24px; margin:.1em 0 .3em; scroll-margin-top:20px}
+  section.block > h4{font-size:17px; margin:1.4em 0 .4em; color:#cdd9f0}
+  .eyebrow{color:var(--brand); font-weight:600; font-size:12.5px; letter-spacing:1.4px;
+    text-transform:uppercase; margin-bottom:2px}
+
+  p{margin:.6em 0}
+  .muted{color:var(--muted)}
+
+  /* cards / callouts */
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px 20px; margin:16px 0; box-shadow:var(--shadow)}
+  .callout{border-radius:12px; padding:14px 16px; margin:16px 0; border:1px solid var(--line);
+    background:var(--panel2)}
+  .callout.leak{border-color:#5a3030; background:#241619}
+  .callout.tip{border-color:#2c4a3a; background:#13231c}
+  .callout.key{border-color:#36406b; background:#161d33}
+  .callout .tag{font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase}
+  .callout.leak .tag{color:var(--bad)}
+  .callout.tip .tag{color:var(--good)}
+  .callout.key .tag{color:var(--brand)}
+
+  /* tables */
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px; overflow:hidden;
+    border-radius:10px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:var(--panel2); color:#cfe0ff; font-weight:600}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+  .scroll{overflow:auto}
+
+  pre{background:var(--code); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; overflow:auto; font-size:13px; line-height:1.55; color:#d7e3ff}
+  pre b{color:#fff}
+
+  /* status badges */
+  .status{font-size:11.5px; padding:3px 9px; border-radius:999px; font-weight:700;
+    white-space:nowrap; border:1px solid transparent}
+  .s-done{background:rgba(54,211,153,.14); color:var(--good); border-color:#2c5e49}
+  .s-plan{background:rgba(251,189,35,.13); color:var(--warn); border-color:#5e4f1f}
+  .s-con{background:rgba(124,91,255,.15); color:#b6a4ff; border-color:#3f3470}
+
+  /* trap accordion */
+  details.trap{background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    margin:10px 0; overflow:hidden}
+  details.trap > summary{cursor:pointer; padding:14px 16px; list-style:none; display:flex;
+    align-items:center; gap:12px; font-weight:600}
+  details.trap > summary::-webkit-details-marker{display:none}
+  details.trap > summary .arrow{transition:transform .2s; color:var(--muted)}
+  details.trap[open] > summary .arrow{transform:rotate(90deg)}
+  details.trap > summary .t-num{background:var(--chip); border:1px solid var(--line);
+    width:26px;height:26px; display:grid; place-items:center; border-radius:8px; font-size:13px;
+    color:var(--brand)}
+  details.trap .body{padding:2px 18px 18px; border-top:1px solid var(--line)}
+  summary .grow{flex:1}
+
+  /* deep dive */
+  details.dd{border:1px solid var(--line); border-radius:12px; margin:14px 0;
+    background:var(--panel)}
+  details.dd > summary{cursor:pointer; padding:14px 18px; font-weight:600; list-style:none;
+    display:flex; gap:10px; align-items:center}
+  details.dd > summary::-webkit-details-marker{display:none}
+  details.dd > summary .lvl{font-size:11px; color:var(--muted); border:1px solid var(--line);
+    padding:2px 8px; border-radius:999px}
+  details.dd .body{padding:0 20px 18px}
+
+  /* RMSLE calculator */
+  .calc{display:grid; gap:14px}
+  .calc .rows{display:grid; gap:8px}
+  .calc .hd, .calc .r{display:grid; grid-template-columns:1fr 1fr 90px; gap:10px; align-items:center}
+  .calc .hd{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .calc input{width:100%; background:var(--code); border:1px solid var(--line); color:var(--ink);
+    padding:8px 10px; border-radius:8px; font:inherit; font-variant-numeric:tabular-nums}
+  .calc input:focus{outline:2px solid var(--brand); border-color:var(--brand)}
+  .calc .clip{font-size:12.5px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
+  .calc .clip.flag{color:var(--warn)}
+  .btnrow{display:flex; gap:10px; flex-wrap:wrap}
+  button{background:var(--brand); color:#06122b; border:0; padding:9px 14px; border-radius:9px;
+    font-weight:700; cursor:pointer; font:inherit}
+  button.ghost{background:transparent; color:var(--ink); border:1px solid var(--line)}
+  button:hover{filter:brightness(1.08)}
+  .scoreboard{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .score{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:16px}
+  .score .lab{font-size:12.5px; color:var(--muted)}
+  .score .val{font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px}
+  .score.rmse .val{color:var(--bad)}
+  .score.rmsle .val{color:var(--good)}
+  .score .note{font-size:12px; color:var(--muted); margin-top:6px}
+
+  /* weekly chart */
+  .chart{display:grid; grid-template-columns:repeat(7,1fr); gap:10px; align-items:end;
+    height:200px; padding:10px 4px 0; border-bottom:1px solid var(--line)}
+  .bar{position:relative; background:linear-gradient(180deg,var(--brand),var(--brand2));
+    border-radius:6px 6px 0 0; min-height:3px; transition:height .5s ease}
+  .bar .v{position:absolute; top:-20px; left:0; right:0; text-align:center; font-size:11px;
+    color:var(--muted); font-variant-numeric:tabular-nums}
+  .xaxis{display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-top:6px}
+  .xaxis div{text-align:center; font-size:12px; color:var(--muted)}
+  .xaxis div.lowest{color:var(--warn); font-weight:700}
+
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:18px 0}
+  .kpi{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .kpi .n{font-size:26px; font-weight:800; color:var(--brand); font-variant-numeric:tabular-nums}
+  .kpi .l{font-size:12.5px; color:var(--muted)}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:30px clamp(20px,5vw,40px);
+    color:var(--muted); font-size:13px; border-top:1px solid var(--line)}
+
+  .toc-progress{position:fixed; top:0; left:260px; right:0; height:3px; background:transparent; z-index:50}
+  .toc-progress > i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--brand),var(--brand2))}
+
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr}
+    nav.side{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line)}
+    .toc-progress{left:0}
+    .scoreboard{grid-template-columns:1fr}
+  }
+  .defn{border-bottom:1px dotted var(--muted); cursor:help}
+</style>
+</head>
+<body>
+<div class="toc-progress"><i id="progbar"></i></div>
+<div class="wrap">
+
+  <nav class="side">
+    <h1>Store Sales Forecasting</h1>
+    <div class="sub">An interactive learner's guide</div>
+    <div class="grp">Understand</div>
+    <a href="#intro" class="navlink">The big idea</a>
+    <a href="#predict" class="navlink">What we predict</a>
+    <a href="#data" class="navlink">Meet the data</a>
+    <a href="#traps" class="navlink">The 6 silent traps</a>
+    <div class="grp">Get it right</div>
+    <a href="#validation" class="navlink">Honest scoreboard</a>
+    <a href="#rules" class="navlink">The 5 rules</a>
+    <div class="grp">Deep dives</div>
+    <a href="#baselines" class="navlink">Baselines</a>
+    <a href="#rmsle" class="navlink">RMSLE (try it)</a>
+    <a href="#fourier" class="navlink">Seasonality &amp; Fourier</a>
+    <a href="#laghorizon" class="navlink">The 16-day lag horizon</a>
+    <div class="grp">Run it</div>
+    <a href="#reproduce" class="navlink">Reproduce the numbers</a>
+  </nav>
+
+  <main>
+    <header class="hero" id="intro">
+      <div class="eyebrow">Time-Series Forecasting · Corporación Favorita (Ecuador)</div>
+      <h2>Predicting supermarket sales — without fooling yourself</h2>
+      <p class="lead">Real data is rarely "wrong" in a way that throws an error. It's wrong in ways
+      that <em>silently</em> make your model worse and give you no clue why. This guide walks you
+      from the simplest question — "what are we even predicting?" — up to the subtle traps that
+      separate a good time-series model from a broken one.</p>
+      <div class="badge-row">
+        <span class="pill"><b>1,782</b> series</span>
+        <span class="pill"><b>16-day</b> horizon</span>
+        <span class="pill"><b>28,512</b> predictions</span>
+        <span class="pill">scored by <b>RMSLE</b></span>
+      </div>
+      <p class="muted">Every number in this guide is real — reproduced from the competition CSVs.
+      A few prediction examples are labelled <em>illustrative</em> (we have no trained model yet);
+      everything else is verified.</p>
+    </header>
+
+    <!-- ============ WHAT WE PREDICT ============ -->
+    <section class="block" id="predict">
+      <div class="eyebrow">Lesson 1</div>
+      <h3>What are we actually predicting?</h3>
+      <p>A supermarket chain in Ecuador wants to predict <strong>daily sales</strong>. There are
+      <strong>54 stores</strong>, each selling <strong>33 product families</strong> (BEVERAGES,
+      PRODUCE, AUTOMOTIVE, …), recorded <strong>once per day</strong>.</p>
+      <p>Given years of history (2013-01-01 → 2017-08-15), predict sales for the
+      <strong>next 16 days</strong> (2017-08-16 → 2017-08-31) for every store + family. That fixed
+      window has a name we reuse everywhere: the <strong>horizon</strong> (= 16 days).</p>
+
+      <div class="callout key">
+        <span class="tag">Key word · series</span>
+        <p style="margin:.4em 0 0">A <strong>series</strong> is the day-by-day sales history of
+        <em>one product family at one store</em> — the "thing that has a past and a future." Almost
+        every operation happens <em>per series</em>, never mixing across them.</p>
+      </div>
+
+      <pre>54 stores × 33 families = <b>1,782 series</b>
+16 days × 1,782 series  = <b>28,512 predictions</b>   ← exactly the rows we submit</pre>
+
+      <div class="kpis">
+        <div class="kpi"><div class="n">54</div><div class="l">stores</div></div>
+        <div class="kpi"><div class="n">33</div><div class="l">product families</div></div>
+        <div class="kpi"><div class="n">1,782</div><div class="l">series (54 × 33)</div></div>
+        <div class="kpi"><div class="n">1,688</div><div class="l">days of history</div></div>
+      </div>
+      <p class="muted">Hold on to <strong>1,782</strong> — it reappears as a sanity check throughout.</p>
+    </section>
+
+    <!-- ============ DATA ============ -->
+    <section class="block" id="data">
+      <div class="eyebrow">Lesson 2</div>
+      <h3>Meet the data (look before you model)</h3>
+      <p>Before touching a model, look at what you have. Every file, verified:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>File</th><th class="num">Rows</th><th>What's in it</th></tr></thead>
+        <tbody>
+          <tr><td><code>train.csv</code></td><td class="num">3,000,888</td><td>id, date, store_nbr, family, sales, onpromotion · 2013-01-01 → 2017-08-15</td></tr>
+          <tr><td><code>test.csv</code></td><td class="num">28,512</td><td>same columns minus <code>sales</code> · the 16 days to predict</td></tr>
+          <tr><td><code>stores.csv</code></td><td class="num">54</td><td>store_nbr, city, state, type, cluster</td></tr>
+          <tr><td><code>transactions.csv</code></td><td class="num">83,488</td><td>date, store_nbr, transactions</td></tr>
+          <tr><td><code>oil.csv</code></td><td class="num">1,218</td><td>date, dcoilwtico (oil price) · <strong>43 prices are blank</strong></td></tr>
+          <tr><td><code>holidays_events.csv</code></td><td class="num">350</td><td>date, type, locale, locale_name, description, transferred</td></tr>
+          <tr><td><code>sample_submission.csv</code></td><td class="num">28,512</td><td>id, sales — the exact shape our output must have</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout tip">
+        <span class="tag">Use it · onpromotion</span>
+        <p style="margin:.4em 0 0">Unlike transactions (Trap 6), the promotion count <strong>is</strong>
+        provided for the test horizon — promotions are planned in advance — so it's a strong
+        <em>and</em> leak-free predictor we feed directly (same-day, no lag needed).</p>
+      </div>
+    </section>
+
+    <!-- ============ TRAPS ============ -->
+    <section class="block" id="traps">
+      <div class="eyebrow">Lesson 3 · the heart of it</div>
+      <h3>The six silent traps</h3>
+      <p>Ordered easiest → subtlest. Each follows the same shape:
+      <em>what you see → why it quietly hurts → the fix → where it lives in code.</em> A theme runs
+      through several — <strong>leakage</strong>: letting the model use information it would not have
+      at prediction time.</p>
+
+      <details class="trap" open>
+        <summary><span class="arrow">▶</span><span class="t-num">1</span>
+          <span class="grow">Missing calendar days (the counting trap)</span>
+          <span class="status s-done">✅ Fixed</span></summary>
+        <div class="body">
+          <p><strong>What you see:</strong> the store closes on some days — notably every Dec 25 — so
+          those dates have <em>no row at all</em>. They're absent, not recorded as a zero.
+          Series <code>store=1, AUTOMOTIVE</code> has 1,684 rows over a 1,688-day span → 4 missing
+          days, all Christmases.</p>
+          <p><strong>Why it quietly hurts:</strong> time-series features count <em>rows</em>. After a
+          gap, "7 rows back" is no longer "7 days back" — your "same weekday last week" lag points at
+          the wrong day, and seasonal sine/cosine terms slide out of phase. Nothing errors; the model
+          just gets worse.</p>
+          <p><strong>The fix:</strong> rebuild each series onto a complete daily calendar and fill the
+          missing days with <code>sales = 0</code> (the store sold nothing — which is <em>true</em>,
+          and keeps the row spacing regular). Tag each inserted row <code>was_closed = True</code> so
+          nothing is lost.</p>
+
+          <h4 style="margin-top:1em">Read the numbers — they're the proof</h4>
+          <pre>original rows   : 3,000,888    <b>← what Kaggle gave us</b>
+reindexed rows  : 3,008,016    <b>← after filling gaps</b>
+expected        : 1,782 × 1,688 = 3,008,016
+rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></pre>
+          <pre>  3,000,888  (gaps where the store was shut)
++     7,128  (4 Christmases × 1,782 series, restored as sales = 0)
+─────────
+  3,008,016  (a complete, gap-free grid: 1,782 series × 1,688 days)</pre>
+          <p class="muted">A complete grid <em>must</em> have exactly (series × days) rows. The total
+          matching the product — and 7,128 dividing evenly by 1,782 — is itself the evidence the
+          reindex did exactly the right thing.</p>
+          <p class="muted"><strong>Where:</strong> <code>src/data.py :: reindex_series_gapfree()</code>,
+          checked by <code>src/validation.py :: assert_gapfree()</code>.</p>
+        </div>
+      </details>
+
+      <details class="trap">
+        <summary><span class="arrow">▶</span><span class="t-num">2</span>
+          <span class="grow">Oil price gaps + blanks (your first taste of leakage)</span>
+          <span class="status s-plan">⏳ Planned</span></summary>
+        <div class="body">
+          <p><strong>What you see:</strong> Ecuador's economy is oil-dependent, so oil price is a
+          plausible driver. But <code>oil.csv</code> has two holes: oil only trades on business days
+          (weekends/holidays have no row), and <strong>43 rows</strong> exist with an empty price.</p>
+          <p><strong>The fix:</strong> build a continuous daily calendar, left-join oil, then
+          <strong>forward-fill</strong> — carry the last known price forward (one leading back-fill for
+          the very first blank day).</p>
+          <div class="callout leak">
+            <span class="tag">Leakage warning</span>
+            <p style="margin:.4em 0 0">Why not interpolation? It averages the value <em>before</em>
+            and <em>after</em> the gap — and "after" is the <strong>future</strong>. Using it means the
+            model peeks at information it wouldn't have. Forward-fill only looks backward, so it's safe.</p>
+          </div>
+          <p class="muted"><strong>Where:</strong> oil features in <code>src/features.py</code>.</p>
+        </div>
+      </details>
+
+      <details class="trap">
+        <summary><span class="arrow">▶</span><span class="t-num">3</span>
+          <span class="grow">Holidays aren't a simple yes/no (domain modeling)</span>
+          <span class="status s-plan">⏳ Planned</span></summary>
+        <div class="body">
+          <p><strong>What you see:</strong> <code>holidays_events.csv</code> looks like a "was it a
+          holiday?" table, but isn't. A row with <code>transferred = True</code> means the holiday did
+          <em>not</em> happen on its listed date — a separate <code>Transfer</code> row carries the
+          real date. There are also <code>Bridge</code> days and <code>Work Day</code> rows, and
+          <code>locale</code> (National/Regional/Local) means a holiday doesn't apply to every store.</p>
+          <p><strong>The fix:</strong> compute an <strong>effective holiday calendar</strong> — drop the
+          transferred originals, honor the Transfer/Bridge/Work Day rows, and scope by locale:
+          National → all stores; Regional → that state; Local → that city.</p>
+          <div class="callout tip"><span class="tag">Lesson</span>
+            <p style="margin:.4em 0 0">A column named like a feature isn't automatically a usable
+            feature. Understanding the domain is part of feature engineering.</p></div>
+          <p class="muted"><strong>Where:</strong> holiday features in <code>src/features.py</code>.</p>
+        </div>
+      </details>
+
+      <details class="trap">
+        <summary><span class="arrow">▶</span><span class="t-num">4</span>
+          <span class="grow">The 2016 earthquake anomaly</span>
+          <span class="status s-plan">⏳ Planned</span></summary>
+        <div class="body">
+          <p><strong>What you see:</strong> a magnitude-7.8 earthquake on <strong>2016-04-16</strong>
+          caused a relief-driven sales spike lasting weeks.</p>
+          <p><strong>Why it quietly hurts:</strong> a one-off spike isn't a repeating pattern. Left
+          unmarked, your trend and seasonality try to "explain" it and get bent out of shape.</p>
+          <p><strong>The fix:</strong> add a binary (or decaying) <strong>earthquake-window flag</strong>
+          (~2016-04-16 → mid-May) so the model absorbs the spike as a known event. We do
+          <em>not</em> delete those rows — that would re-open a hole in the gap-free index from Trap 1.</p>
+          <div class="callout tip"><span class="tag">Lesson</span>
+            <p style="margin:.4em 0 0">Don't delete anomalies — <em>label</em> them.</p></div>
+          <p class="muted"><strong>Where:</strong> calendar features in <code>src/features.py</code>.</p>
+        </div>
+      </details>
+
+      <details class="trap">
+        <summary><span class="arrow">▶</span><span class="t-num">5</span>
+          <span class="grow">New / sparse series (the coverage trap)</span>
+          <span class="status s-plan">⏳ Planned</span></summary>
+        <div class="body">
+          <p><strong>What you see:</strong> some store + family pairs have little or no meaningful
+          history (a barely-selling family, or one that only started recently).</p>
+          <p><strong>Why it quietly hurts:</strong> a complex model can't learn a pattern that isn't
+          there — but the submission <strong>must</strong> contain a value for all 28,512 rows. A
+          missing/NaN prediction is invalid.</p>
+          <p><strong>The fix:</strong> for thin series, fall back to a simple
+          <strong>seasonal-naive / near-zero</strong> prediction. See
+          <a href="#baselines">Baselines</a> for exactly how these work.</p>
+          <p class="muted"><strong>Where:</strong> the fallback path in <code>src/models.py</code>.</p>
+        </div>
+      </details>
+
+      <details class="trap">
+        <summary><span class="arrow">▶</span><span class="t-num">6</span>
+          <span class="grow">Transactions are past-only (a hard constraint)</span>
+          <span class="status s-con">⚠️ Constraint</span></summary>
+        <div class="body">
+          <p><strong>What you see:</strong> <code>transactions.csv</code> is rich and tempting — but it
+          is <strong>not provided for the 16-day test horizon</strong>. You don't know a store's
+          transaction count on a day you're predicting.</p>
+          <div class="callout leak"><span class="tag">Leakage warning</span>
+            <p style="margin:.4em 0 0">Use same-day transactions and validation looks fantastic —
+            because in validation you happen to have that column. On the real future it doesn't exist,
+            so the model collapses.</p></div>
+          <p><strong>The fix:</strong> use transactions <strong>only as a lagged feature</strong>
+          (e.g. transactions 7+ days ago, which <em>are</em> known by prediction time).</p>
+          <p class="muted"><strong>Where:</strong> lag features in <code>src/features.py</code>.</p>
+        </div>
+      </details>
+
+      <div class="card" style="margin-top:20px">
+        <h4 style="margin-top:0">Status at a glance</h4>
+        <div class="scroll">
+        <table>
+          <thead><tr><th>Trap</th><th>Problem</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Missing calendar days</td><td><span class="status s-done">✅ Fixed</span></td></tr>
+            <tr><td>2</td><td>Oil gaps + 43 blanks</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+            <tr><td>3</td><td>Transferred/bridge holidays</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+            <tr><td>4</td><td>2016 earthquake spike</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+            <tr><td>5</td><td>New/sparse series</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+            <tr><td>6</td><td>Transactions = past-only</td><td><span class="status s-con">⚠️ Constraint</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VALIDATION ============ -->
+    <section class="block" id="validation">
+      <div class="eyebrow">Lesson 4</div>
+      <h3>How do we know a model is good? An honest scoreboard</h3>
+      <p>A model always looks brilliant on the data it trained on — it has effectively seen the
+      answers. The only honest signal is its error on data it did <strong>not</strong> train on. We
+      keep a private slice of our own data as an instant, unlimited scoreboard: a
+      <strong>holdout</strong>.</p>
+
+      <div class="callout leak">
+        <span class="tag">Time-series rule</span>
+        <p style="margin:.4em 0 0">Random K-fold <strong>cheats</strong> here. Validate on a day in the
+        <em>middle</em> of history and the model trains on days that come <em>after</em> it — it sees
+        the future relative to what it predicts. The split must be a clean cut in <em>time</em>.</p>
+      </div>
+
+      <pre>train: 2013-01-01 ........... 2017-07-30  │  holdout: 2017-07-31 → 2017-08-15
+       (model learns from the past)        │  (model predicts forward, blind)</pre>
+      <p>We hold out the <strong>last 16 training days</strong> — same length, same "predict 16 days
+      forward" shape as the real task.</p>
+
+      <h4>The holdout is NOT <code>test.csv</code> — keep them straight</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th></th><th>Holdout</th><th><code>test.csv</code></th></tr></thead>
+        <tbody>
+          <tr><td>Comes from</td><td>carved out of <code>train.csv</code></td><td>a separate file Kaggle provides</td></tr>
+          <tr><td>Dates</td><td>2017-07-31 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
+          <tr><td>Know the real sales?</td><td><strong>Yes</strong> — we just hide them</td><td><strong>No</strong> — that's what we predict</td></tr>
+          <tr><td>Who scores it</td><td><strong>we</strong> do, instantly, locally</td><td><strong>Kaggle</strong>, after we submit</td></tr>
+          <tr><td>Purpose</td><td>private rehearsal to compare models</td><td>the actual graded exam</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout tip"><span class="tag">Then retrain on everything</span>
+        <p style="margin:.4em 0 0">The last 16 days are hidden <em>only while comparing models</em>.
+        Once the best approach is picked, re-fit it on <strong>all</strong> training data (including
+        those last 16 days) before predicting the real <code>test.csv</code> — the most recent days
+        carry the freshest trend and seasonality.</p></div>
+      <p class="muted"><strong>Where:</strong> <code>src/validation.py :: train_holdout_split()</code>
+      does the split and asserts the ordering.</p>
+    </section>
+
+    <!-- ============ RULES ============ -->
+    <section class="block" id="rules">
+      <div class="eyebrow">Lesson 5</div>
+      <h3>The five rules that keep us honest</h3>
+      <p>Everything above distills into five rules — and they're <em>enforced in code</em>, so a
+      mistake fails loudly instead of silently corrupting a score.</p>
+      <div class="card">
+        <ol style="margin:0; padding-left:1.2em">
+          <li style="margin:.5em 0"><strong>No leakage.</strong> Every feature must be knowable at
+          prediction time. Lags use strictly past days; oil is forward-filled, never interpolated;
+          transactions are lag-only. <span class="muted">Guard: <code>assert_no_leak()</code>.</span></li>
+          <li style="margin:.5em 0"><strong>Gap-free before features.</strong> The Trap-1 reindex runs
+          <em>before</em> any lag or seasonal feature, so "7 rows back" always means "7 days back."
+          <span class="muted">Guard: <code>assert_gapfree()</code>.</span></li>
+          <li style="margin:.5em 0"><strong>Lags must clear the horizon (≥ 16 days).</strong> The last
+          day we predict (Aug 31) is 16 days past our last real data (Aug 15). We forecast all 16 days
+          at once (<em>direct forecasting</em>) with a base lag of 16. See
+          <a href="#laghorizon">the lag-horizon deep dive</a>.</li>
+          <li style="margin:.5em 0"><strong>Time-respecting validation.</strong> One 16-day holdout
+          mirroring the real horizon; train strictly on earlier data; random K-fold forbidden.</li>
+          <li style="margin:.5em 0"><strong>Consistent metric handling.</strong> RMSLE computed on
+          <code>log1p</code>, predictions clipped ≥ 0, applied identically to every model so scores are
+          truly comparable.</li>
+        </ol>
+      </div>
+      <div class="callout key"><span class="tag">Meta-lesson</span>
+        <p style="margin:.4em 0 0">When a rule matters, encode it as an assertion. A guard that
+        <em>raises</em> the moment you break a rule is worth more than a comment reminding you not to.</p></div>
+    </section>
+
+    <!-- ============ DEEP DIVE: BASELINES ============ -->
+    <section class="block" id="baselines">
+      <div class="eyebrow">Deep dive · start here</div>
+      <h3>Forecast baselines: seasonal-naive &amp; near-zero</h3>
+      <p>The simplest possible ways to predict — no training, no maths. We use them as
+      <strong>fallback rules</strong> for series too thin to model (Trap 5). They predict the
+      <strong>future</strong> 16 days; they do <em>not</em> change any past data.</p>
+
+      <details class="dd" open>
+        <summary><span class="lvl">how it works</span> Seasonal-naive = copy last week forward</summary>
+        <div class="body">
+          <p><strong>Naive</strong> = don't learn anything; copy the past forward.
+          <strong>Seasonal</strong> = copy from the same point in the previous cycle (here, the weekly
+          cycle).</p>
+          <pre>predict next Monday  = last Monday's sales
+predict next Tuesday = last Tuesday's sales
+…repeat last week's 7-day pattern across the 16-day horizon</pre>
+          <h4>Sample data — store 1, GROCERY I (real)</h4>
+          <p>The last known week (7 days ending Tue Aug 15, 2017):</p>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>Last week</th><th class="num">Wed 8/9</th><th class="num">Thu 8/10</th><th class="num">Fri 8/11</th><th class="num">Sat 8/12</th><th class="num">Sun 8/13</th><th class="num">Mon 8/14</th><th class="num">Tue 8/15</th></tr></thead>
+            <tbody><tr><td>sales</td><td class="num">2719</td><td class="num">2591</td><td class="num">1270</td><td class="num">1630</td><td class="num">952</td><td class="num">2407</td><td class="num">2508</td></tr></tbody>
+          </table>
+          </div>
+          <p>Seasonal-naive copies each weekday forward — the 7-day pattern just repeats across the
+          horizon, preserving this series' own shape (here a Sunday dip to <strong>952</strong> against
+          midweek highs of ~2.5–2.7k).</p>
+        </div>
+      </details>
+
+      <details class="dd">
+        <summary><span class="lvl">how it works</span> Near-zero = "sells nothing → predict nothing"</summary>
+        <div class="body">
+          <p>If a series has essentially no sales ever, the safest forecast is <strong>≈ 0</strong>.
+          Example — <strong>store 1, BOOKS</strong>, whose last week is all zeros:</p>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>Last 7 days (store 1, BOOKS)</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th></tr></thead>
+          </table>
+          </div>
+          <p>→ predict <strong>0</strong> for all 16 horizon days. Nothing to copy.</p>
+        </div>
+      </details>
+
+      <details class="dd">
+        <summary><span class="lvl">important</span> Who decides which rule? (not the model)</summary>
+        <div class="body">
+          <p>A common misconception: the trained model does <strong>not</strong> choose between the main
+          prediction, seasonal-naive, and near-zero. The choice is made <em>before</em> modeling by a
+          simple <strong>rule-based gate</strong> (an <code>if</code> check) on each series' history.
+          Thin series are peeled off and never reach the model.</p>
+          <pre>For each of the 1,782 series:
+   ├─ Has enough history?  ──►  use the MAIN model (the learned one)
+   └─ Too thin?            ──►  use a FALLBACK rule
+                                   ├─ a little history to copy  ►  seasonal-naive
+                                   └─ basically no sales ever   ►  near-zero (~0)</pre>
+          <p>A trained model is a function: it always returns a number — it can't output a blank. The
+          risk for a no-history series isn't emptiness; it's that the number is unreliable garbage. So
+          we route thin series around the model (the cleaner option), train only on healthy ones, then
+          stitch both prediction sets back together into all 28,512 rows.</p>
+          <p class="muted"><strong>Where:</strong> the fallback path in <code>src/models.py</code>.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ============ DEEP DIVE: RMSLE (INTERACTIVE) ============ -->
+    <section class="block" id="rmsle">
+      <div class="eyebrow">Deep dive · easy–medium · interactive</div>
+      <h3>The metric: RMSLE</h3>
+      <p>Read the name backwards and it's a recipe, one word per step:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Word</th><th>Step</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Error</strong></td><td>how wrong each prediction is: <code>prediction − actual</code></td></tr>
+          <tr><td><strong>Logarithmic</strong></td><td>but first take the <strong>log</strong> of both numbers</td></tr>
+          <tr><td><strong>Squared</strong></td><td>square each error (too-high and too-low both count)</td></tr>
+          <tr><td><strong>Mean</strong></td><td>average all those squared errors</td></tr>
+          <tr><td><strong>Root</strong></td><td>take the square root at the end</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
+
+      <div class="callout key"><span class="tag">Why the log?</span>
+        <p style="margin:.4em 0 0">It measures <strong>relative</strong> (ratio) error, not the raw
+        gap. Predict 15 when truth is 5, and predict 3,000 when truth is 1,000 — both are "3× too
+        high," equally bad. Because <code>log(a) − log(b) = log(a/b)</code>, RMSLE asks "how many
+        <em>times</em> off were you?" That's how a tiny family and a huge family count fairly.</p></div>
+
+      <p><code>log1p(x) = log(1+x)</code> so <code>log1p(0)=0</code> (no crash on zero sales); its
+      inverse <code>expm1</code> returns real units. Two consequences we apply to every model: we
+      <strong>train in log space</strong>, and we <strong>clip predictions to ≥ 0</strong>.</p>
+
+      <div class="card">
+        <h4 style="margin-top:0">Try it — RMSLE vs plain RMSE, side by side</h4>
+        <p class="muted">Edit the actuals and predictions. Negative predictions are auto-clipped to 0
+        before scoring (a negative would make <code>log1p</code> undefined). Loads with the guide's
+        verified example.</p>
+        <div class="calc">
+          <div class="rows">
+            <div class="hd"><div>actual</div><div>prediction</div><div>clipped</div></div>
+            <div class="r"><input class="ac" type="number" value="5"><input class="pr" type="number" value="15"><div class="clip"></div></div>
+            <div class="r"><input class="ac" type="number" value="1000"><input class="pr" type="number" value="3000"><div class="clip"></div></div>
+            <div class="r"><input class="ac" type="number" value="0"><input class="pr" type="number" value="-2"><div class="clip"></div></div>
+            <div class="r"><input class="ac" type="number" value="200"><input class="pr" type="number" value="195"><div class="clip"></div></div>
+          </div>
+          <div class="btnrow">
+            <button id="recalc">Recalculate</button>
+            <button class="ghost" id="reset">Reset to verified example</button>
+          </div>
+          <div class="scoreboard">
+            <div class="score rmse"><div class="lab">Plain RMSE (raw gap)</div><div class="val" id="rmseVal">—</div><div class="note">dominated by the biggest-scale row</div></div>
+            <div class="score rmsle"><div class="lab">RMSLE (ratio error)</div><div class="val" id="rmsleVal">—</div><div class="note">small &amp; huge families count fairly</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="muted">With the default example the answers are <strong>RMSE ≈ 1000.0</strong> and
+      <strong>RMSLE ≈ 0.736</strong>. RMSE is almost entirely dictated by the 1000→3000 row; RMSLE
+      scores both "3× off" rows in the same ballpark.</p>
+      <p class="muted"><strong>Where:</strong> <code>src/validation.py :: rmsle()</code> and
+      <code>clip_nonneg()</code>.</p>
+    </section>
+
+    <!-- ============ DEEP DIVE: FOURIER ============ -->
+    <section class="block" id="fourier">
+      <div class="eyebrow">Deep dive · medium</div>
+      <h3>Seasonality &amp; Fourier features</h3>
+      <p>A <strong>seasonality</strong> is a repeating pattern tied to the calendar. This data has two:
+      <strong>weekly</strong> (across all series, weekends sell more on average — per series-day means
+      Sat ≈ 433, Sun ≈ 463 vs ≈ 285–346 on weekdays) and <strong>yearly</strong> (a December surge).
+      Individual series still vary — store 1's GROCERY I actually <em>dips</em> on Sunday.</p>
+
+      <div class="card">
+        <h4 style="margin-top:0">Weekly shape — store 1, GROCERY I (mean sales by weekday, real)</h4>
+        <div class="chart" id="weekChart"></div>
+        <div class="xaxis" id="weekAxis"></div>
+        <p class="muted" style="margin-top:12px">Roughly flat Mon–Sat (~2.3–2.8k) with a sharp Sunday
+        dip to ~1031. A weekend-<em>peaking</em> series would simply have a different shape — and the
+        model adapts per series.</p>
+      </div>
+
+      <details class="dd">
+        <summary><span class="lvl">how it works</span> Why sin + cos represent a cycle</summary>
+        <div class="body">
+          <p>A cycle is a wave; the natural way to write one is <code>sin</code> and <code>cos</code>.
+          For a weekly pattern (period = 7): <code>sin(2π·day/7)</code> and <code>cos(2π·day/7)</code>
+          each complete one full wave every 7 days. Why <em>both</em>? A single sine has a fixed peak
+          position; combining a sin <strong>and</strong> a cos (with weights the model learns) lets it
+          place the peak <em>anywhere</em>, at <em>any</em> height — so with just 2 numbers per cycle a
+          plain linear regression fits "this series peaks Saturday, that one Sunday."</p>
+          <h4>Sample data — exact sin/cos vs real weekday means</h4>
+          <div class="scroll">
+          <table>
+            <thead><tr><th><code>d</code></th><th>weekday</th><th class="num">sin(2π·d/7)</th><th class="num">cos(2π·d/7)</th><th class="num">mean sales (GROCERY I)</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td>Mon</td><td class="num">0.000</td><td class="num">1.000</td><td class="num">2383</td></tr>
+              <tr><td>1</td><td>Tue</td><td class="num">0.782</td><td class="num">0.623</td><td class="num">2409</td></tr>
+              <tr><td>2</td><td>Wed</td><td class="num">0.975</td><td class="num">−0.223</td><td class="num">2770</td></tr>
+              <tr><td>3</td><td>Thu</td><td class="num">0.434</td><td class="num">−0.901</td><td class="num">2229</td></tr>
+              <tr><td>4</td><td>Fri</td><td class="num">−0.434</td><td class="num">−0.901</td><td class="num">2414</td></tr>
+              <tr><td>5</td><td>Sat</td><td class="num">−0.975</td><td class="num">−0.223</td><td class="num">2323</td></tr>
+              <tr><td>6</td><td>Sun</td><td class="num">−0.782</td><td class="num">0.623</td><td class="num">1031</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p>The model learns two weights (<code>w_sin</code>, <code>w_cos</code>) plus an intercept so
+          <code>intercept + w_sin·sin + w_cos·cos</code> traces this shape. Two columns reconstruct the
+          weekly rhythm and extend cleanly into any future date. (A sharp single-day dip like Sunday's
+          needs a couple more Fourier pairs to pin down exactly.)</p>
+        </div>
+      </details>
+
+      <details class="dd">
+        <summary><span class="lvl">tooling</span> CalendarFourier &amp; DeterministicProcess</summary>
+        <div class="body">
+          <p><strong>CalendarFourier</strong> generates those sin/cos columns from the dates. Instead of
+          365 separate "is it Jan 1 / Jan 2 / …" columns for the yearly cycle, you ask for a few Fourier
+          pairs and get a handful of smooth columns approximating the whole annual wave.</p>
+          <p><strong>DeterministicProcess</strong> assembles the full time-feature table: a constant, a
+          <strong>trend</strong> (1, 2, 3, … counting upward), and the seasonal Fourier terms.
+          "Deterministic" is the key word — these depend <em>only on the date</em>, not on past sales,
+          so they're computable for any future day. Perfect for forecasting.</p>
+        </div>
+      </details>
+
+      <details class="dd">
+        <summary><span class="lvl">why gaps wreck it</span> "Out of phase" — in numbers</summary>
+        <div class="body">
+          <p><strong>Phase</strong> = where you are in the cycle. The sin/cos value comes from the row's
+          <em>position</em>, assuming consecutive days. <strong>Correct</strong> (no gap):</p>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>date</th><th>real weekday</th><th class="num">position d</th><th class="num">sin used</th><th class="num">sales</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 12</td><td>Sat</td><td class="num">5</td><td class="num">−0.975</td><td class="num">1630</td></tr>
+              <tr><td>Aug 13</td><td>Sun</td><td class="num">6</td><td class="num">−0.782</td><td class="num">952</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p>Now <strong>drop the Sat Aug 12 row</strong> (a closed day). Everything after shifts up one:</p>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>date</th><th>real weekday</th><th class="num">position d (miscounted)</th><th class="num">sin used</th><th class="num">sales</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 13</td><td>Sun</td><td class="num"><strong>5</strong> (thinks it's Sat)</td><td class="num"><strong>−0.975</strong></td><td class="num">952</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p>Sunday's 952 sales are now paired with <em>Saturday's</em> sin value. Every weekday past the
+          gap is mislabelled by one — silent corruption.</p>
+          <div class="callout tip"><span class="tag">Punchline</span>
+            <p style="margin:.4em 0 0">Fill the calendar <em>first</em> (so position = real date again),
+            <em>then</em> build Fourier seasonality.</p></div>
+          <p class="muted"><strong>Where:</strong> seasonal/deterministic features in
+          <code>src/features.py</code>.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ============ DEEP DIVE: LAG HORIZON ============ -->
+    <section class="block" id="laghorizon">
+      <div class="eyebrow">Deep dive · advanced</div>
+      <h3>The 16-day lag horizon (why lags must be ≥ 16)</h3>
+      <p>A <strong>lag</strong> feature ("sales N days ago") is built from past sales. But our
+      prediction window is 16 days long and we have <strong>no real sales inside it</strong>. That puts
+      a hard floor on how short a lag we can use.</p>
+      <pre>TRAIN (real sales known)            TEST / horizon (must PREDICT, no real sales)
+... Jul 31 ... Aug 15  │  Aug 16  Aug 17  ...  Aug 30  Aug 31
+            ↑ last real day        └──────── 16 days to predict ────────┘</pre>
+
+      <details class="dd" open>
+        <summary><span class="lvl">the problem</span> Why lag_7 breaks partway through</summary>
+        <div class="body">
+          <p>Check <code>lag_7</code> for each test day — does "7 days before" land in the known zone
+          (≤ Aug 15)?</p>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>Predict this day</th><th>7 days before</th><th>Known?</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 16</td><td>Aug 9</td><td>✅ in train</td></tr>
+              <tr><td>Aug 22</td><td>Aug 15</td><td>✅ last real day</td></tr>
+              <tr><td><strong>Aug 23</strong></td><td><strong>Aug 16</strong></td><td>❌ a test day — no real sales</td></tr>
+              <tr><td>Aug 31</td><td>Aug 24</td><td>❌ test day</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p>From Aug 23 onward, "7 days ago" points back <em>into the test period itself</em>.</p>
+        </div>
+      </details>
+
+      <details class="dd">
+        <summary><span class="lvl">the fix</span> Why lag_16 works for the whole horizon</summary>
+        <div class="body">
+          <div class="scroll">
+          <table>
+            <thead><tr><th>Predict this day</th><th>16 days before</th><th>Known?</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 16</td><td>Jul 31</td><td>✅ in train</td></tr>
+              <tr><td>Aug 31</td><td><strong>Aug 15</strong></td><td>✅ last real day</td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p>Even the farthest day (Aug 31) reaches back exactly to Aug 15.</p>
+          <h4>Sample data — tail of store 1, GROCERY I (real)</h4>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>date</th><th class="num">Jul 30</th><th class="num">Jul 31</th><th>…</th><th class="num">Aug 14</th><th class="num">Aug 15 (last real)</th></tr></thead>
+            <tbody><tr><td>sales</td><td class="num">1086</td><td class="num">2966</td><td>…</td><td class="num">2407</td><td class="num">2508</td></tr></tbody>
+          </table>
+          </div>
+          <div class="scroll">
+          <table>
+            <thead><tr><th>predict day</th><th>lag_16 source → value</th><th>lag_17 source → value</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 16</td><td>Jul 31 → <strong>2966</strong></td><td>Jul 30 → <strong>1086</strong></td></tr>
+              <tr><td>Aug 31</td><td>Aug 15 → <strong>2508</strong></td><td>Aug 14 → <strong>2407</strong></td></tr>
+            </tbody>
+          </table>
+          </div>
+          <p>Every value comes from real data.</p>
+        </div>
+      </details>
+
+      <div class="callout key"><span class="tag">The rule</span>
+        <p style="margin:.4em 0 0">The last day you predict is <strong>16 days</strong> past your last
+        real data. A lag that must work for the <em>whole</em> horizon has to reach back at least 16
+        days. In general: <strong>minimum usable lag = horizon length (H)</strong>.</p></div>
+
+      <h4>The design decision: direct forecasting with base lag = 16</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Approach</th><th>How</th><th>Trade-off</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Direct (chosen)</strong></td><td>Predict all 16 days at once, using only real lags ≥ 16 (lag_16, lag_17, … ; rolling windows anchored at shift(16))</td><td>One feature matrix, <strong>no error compounding</strong></td></tr>
+          <tr><td>Recursive (not chosen)</td><td>Predict Aug 16, treat it as real, use as lag_1 for Aug 17, …</td><td>Allows short lags, but errors <strong>snowball</strong> across 16 days</td></tr>
+          <tr><td>Direct per step</td><td>A separate model per horizon day (day-1 uses lag_1, day-16 uses lag_16)</td><td>Freshest legal lag per day, but 16 models</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="callout tip"><span class="tag">Long horizons → lean on seasonality</span>
+        <p style="margin:.4em 0 0">A 1-year horizon would need <code>lag_365</code> as its shortest lag
+        — nearly useless. The longer the horizon, the less lags help and the more you lean on date-only
+        features (trend + Fourier seasonality, holidays), computable for any future date. That's why the
+        modelling is staged: a deterministic backbone first, lags added on top as a short-horizon
+        booster — never a replacement.</p></div>
+      <p class="muted"><strong>Where:</strong> lag/rolling features in <code>src/features.py</code>;
+      enforced by the base-lag ≥ 16 guard in <code>src/validation.py :: assert_no_leak()</code>.</p>
+    </section>
+
+    <!-- ============ REPRODUCE ============ -->
+    <section class="block" id="reproduce">
+      <div class="eyebrow">Run it yourself</div>
+      <h3>Reproduce the numbers</h3>
+      <p>Everything runs inside the uv-managed environment:</p>
+      <pre># Confirm the closed-day gaps and the reindex fix
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+t = data.load_train(); r = data.reindex_series_gapfree(t)
+print('inserted closed-days:', int(r['was_closed'].sum()))   # 7128
+"
+
+# Confirm the oil blanks
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+print('oil null prices:', int(data.load_oil()['dcoilwtico'].isna().sum()))  # 43
+"</pre>
+      <p class="muted">This is a living guide. As each planned fix lands, update the status badges and
+      the matching section.</p>
+    </section>
+
+    <footer>
+      Store Sales Time Series — A Learner's Interactive Guide · companion to
+      <code>data-analysis.md</code> and <code>technical-notes.md</code>. Numbers verified from the
+      competition CSVs; prediction examples labelled illustrative where noted.
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- RMSLE / RMSE calculator ---------- */
+  var log1p = Math.log1p || function(x){ return Math.log(1+x); };
+  var rows = document.querySelectorAll(".calc .r");
+  var defaults = [[5,15],[1000,3000],[0,-2],[200,195]];
+
+  function compute(){
+    var seGap=0, seLog=0, n=0;
+    rows.forEach(function(r){
+      var a = parseFloat(r.querySelector(".ac").value);
+      var p = parseFloat(r.querySelector(".pr").value);
+      var clipEl = r.querySelector(".clip");
+      if (isNaN(a) || isNaN(p)) { clipEl.textContent=""; return; }
+      var pc = Math.max(0, p);                 // clip_nonneg
+      clipEl.textContent = "→ " + pc;
+      clipEl.classList.toggle("flag", p < 0);
+      var ac = Math.max(0, a);                 // actuals are >= 0 by definition
+      seGap += Math.pow(pc - a, 2);
+      seLog += Math.pow(log1p(pc) - log1p(ac), 2);
+      n++;
+    });
+    if (n === 0){ return; }
+    var rmse = Math.sqrt(seGap / n);
+    var rmsle = Math.sqrt(seLog / n);
+    document.getElementById("rmseVal").textContent =
+      rmse >= 100 ? rmse.toFixed(1) : rmse.toFixed(3);
+    document.getElementById("rmsleVal").textContent = rmsle.toFixed(3);
+  }
+  document.getElementById("recalc").addEventListener("click", compute);
+  document.querySelectorAll(".calc input").forEach(function(i){
+    i.addEventListener("input", compute);
+  });
+  document.getElementById("reset").addEventListener("click", function(){
+    rows.forEach(function(r,idx){
+      r.querySelector(".ac").value = defaults[idx][0];
+      r.querySelector(".pr").value = defaults[idx][1];
+    });
+    compute();
+  });
+  compute();
+
+  /* ---------- weekly seasonality bar chart ---------- */
+  var week = [
+    {d:"Mon", v:2383}, {d:"Tue", v:2409}, {d:"Wed", v:2770}, {d:"Thu", v:2229},
+    {d:"Fri", v:2414}, {d:"Sat", v:2323}, {d:"Sun", v:1031}
+  ];
+  var maxV = Math.max.apply(null, week.map(function(w){return w.v;}));
+  var minV = Math.min.apply(null, week.map(function(w){return w.v;}));
+  var chart = document.getElementById("weekChart");
+  var axis = document.getElementById("weekAxis");
+  week.forEach(function(w){
+    var bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.height = "0%";
+    bar.title = w.d + ": " + w.v;
+    var v = document.createElement("span");
+    v.className = "v"; v.textContent = w.v;
+    bar.appendChild(v);
+    chart.appendChild(bar);
+    // animate after layout
+    requestAnimationFrame(function(){
+      bar.style.height = Math.round((w.v / maxV) * 100) + "%";
+    });
+    var lab = document.createElement("div");
+    lab.textContent = w.d;
+    if (w.v === minV) lab.className = "lowest";
+    axis.appendChild(lab);
+  });
+
+  /* ---------- scroll spy + progress bar ---------- */
+  var links = Array.prototype.slice.call(document.querySelectorAll(".navlink"));
+  var sections = links.map(function(a){ return document.querySelector(a.getAttribute("href")); });
+  var prog = document.getElementById("progbar");
+
+  function onScroll(){
+    var y = window.scrollY + 120;
+    var current = 0;
+    sections.forEach(function(sec, i){ if (sec && sec.offsetTop <= y) current = i; });
+    links.forEach(function(a,i){ a.classList.toggle("active", i === current); });
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    prog.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + "%";
+  }
+  window.addEventListener("scroll", onScroll, {passive:true});
+  onScroll();
+})();
+</script>
+</body>
+</html>
