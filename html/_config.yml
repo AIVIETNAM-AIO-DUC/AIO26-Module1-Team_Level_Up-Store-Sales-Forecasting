@@ -1,0 +1,20 @@
+title: Store Sales Forecasting — Interactive Learner's Guide
+description: A learner's guide to time-series forecasting on the Corporación Favorita dataset.
+
+# Project Pages site lives at https://nqnguyen86.github.io/learning-time-series/
+baseurl: "/learning-time-series"
+url: "https://nqnguyen86.github.io"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Files Jekyll should ignore (won't be published)
+exclude:
+  - README.md
+  - data-analysis.md
+  - technical-notes.md
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
