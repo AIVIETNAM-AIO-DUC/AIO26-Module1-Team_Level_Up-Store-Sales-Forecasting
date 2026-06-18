@@ -1,0 +1,258 @@
+"""Validation harness — the test of record for this project (Constitution IV).
+
+Responsibility: the time-respecting 16-day holdout split, RMSLE scoring in log space
+with non-negative clipping, the no-leak and gap-free assertions, and the iteration
+log helper. Every model is judged by these functions on the *same* holdout so scores
+are comparable and honest.
+
+Implemented in tasks T007 (assert_gapfree), T008 (train_holdout_split),
+T009 (rmsle, clip_nonneg), T010 (assert_no_leak), T011 (log_iteration),
+T036 (validate_submission).
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from pathlib import Path
+
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
+
+SERIES_KEY: list[str] = ["store_nbr", "family"]
+
+# The competition horizon is 16 days; the local holdout mirrors it exactly.
+HORIZON_DAYS: int = 16
+
+# iteration_log.md lives at the repo root (src/ -> parents[1]).
+REPO_ROOT: Path = Path(__file__).resolve().parents[1]
+ITERATION_LOG: Path = REPO_ROOT / "iteration_log.md"
+
+
+def clip_nonneg(pred: npt.ArrayLike) -> npt.NDArray[np.float64]:
+    """Clip predictions to be non-negative (sales cannot be < 0; RMSLE needs ``>= 0``).
+
+    Applied before scoring and before writing the submission so the same rule holds
+    everywhere (Constitution V).
+    """
+    return np.clip(np.asarray(pred, dtype=np.float64), a_min=0.0, a_max=None)
+
+
+def rmsle(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> float:
+    """Root Mean Squared Logarithmic Error — the official competition metric.
+
+    Computed as RMSE between ``log1p(y_true)`` and ``log1p(y_pred)``. Inputs are in raw
+    sales units (not log space); predictions are clipped to ``>= 0`` first because
+    ``log1p`` is undefined for negatives. ``log1p`` (= ``log(1 + x)``) maps the many
+    zero-sales days to 0 cleanly. Every model is scored with this same function on the
+    same holdout so the numbers are comparable (Constitution IV).
+
+    Args:
+        y_true: Actual sales (``>= 0``).
+        y_pred: Predicted sales (any real values; clipped to ``>= 0`` internally).
+
+    Returns:
+        The RMSLE as a float (lower is better; 0.0 is a perfect prediction).
+    """
+    y_true_arr = np.asarray(y_true, dtype=np.float64)
+    y_pred_arr = clip_nonneg(y_pred)
+    squared_log_error = (np.log1p(y_pred_arr) - np.log1p(y_true_arr)) ** 2
+    return float(np.sqrt(np.mean(squared_log_error)))
+
+
+def assert_gapfree(
+    df: pd.DataFrame,
+    *,
+    key: Sequence[str] = SERIES_KEY,
+    date_col: str = "date",
+) -> None:
+    """Assert every series has a complete, duplicate-free daily calendar.
+
+    A "series" is one group of ``key`` (default ``(store_nbr, family)``). For each series
+    the dates must form a contiguous daily run from its first to its last date — no
+    missing days and no duplicates. Lag and seasonality features rely on this regular
+    index; call this guard right after reindexing and before building any such feature.
+
+    Args:
+        df: A frame with the ``key`` columns and a datetime ``date_col``.
+        key: Columns identifying a series. Defaults to (store_nbr, family).
+        date_col: Name of the daily date column.
+
+    Raises:
+        AssertionError: If any series has missing days or duplicate dates, with a short
+            sample of the offending series in the message.
+    """
+    key = list(key)
+    stats = df.groupby(key, observed=True)[date_col].agg(["min", "max", "count", "nunique"])
+
+    expected_days = (stats["max"] - stats["min"]).dt.days + 1
+    has_missing = stats["nunique"] != expected_days
+    has_duplicates = stats["count"] != stats["nunique"]
+    bad = stats[has_missing | has_duplicates]
+
+    if not bad.empty:
+        sample = bad.head(5).to_string()
+        raise AssertionError(
+            f"{len(bad)} series are not gap-free "
+            f"(missing days and/or duplicate dates). First offenders:\n{sample}"
+        )
+
+
+def assert_no_leak(
+    feature_df: pd.DataFrame,
+    prediction_date: str | pd.Timestamp,
+    *,
+    date_col: str = "date",
+    strict: bool = False,
+) -> None:
+    """Assert no feature row is dated past the prediction boundary (no future leak).
+
+    Time-series leakage — using information unavailable at prediction time — makes a
+    model look great in validation and fail on the real future. This guard enforces the
+    boundary explicitly (Constitution IV).
+
+    Two common uses:
+      * Training must not see the holdout: ``assert_no_leak(train, holdout_start,
+        strict=True)`` — every training row must be *strictly before* the holdout.
+      * A feature set is "as of" a date: ``assert_no_leak(features, as_of)`` — nothing
+        may be dated *after* ``as_of``.
+
+    Timestamps are read from ``date_col`` if present, otherwise from a DatetimeIndex.
+
+    Args:
+        feature_df: Frame whose rows carry a date (column ``date_col`` or a datetime index).
+        prediction_date: The cutoff. Rows must be ``<= prediction_date`` (``strict=False``)
+            or ``< prediction_date`` (``strict=True``).
+        date_col: Name of the date column to check; falls back to the index.
+        strict: If True, require dates strictly before ``prediction_date``.
+
+    Raises:
+        AssertionError: If any row violates the boundary (with count + worst date).
+        KeyError: If no usable date column/index is found.
+    """
+    if date_col in feature_df.columns:
+        ts = pd.to_datetime(feature_df[date_col])
+    elif isinstance(feature_df.index, pd.DatetimeIndex):
+        ts = feature_df.index.to_series()
+    else:
+        raise KeyError(
+            f"No '{date_col}' column and the index is not a DatetimeIndex; "
+            "cannot check timestamps for leakage."
+        )
+
+    cutoff = pd.Timestamp(prediction_date)
+    violators = ts >= cutoff if strict else ts > cutoff
+
+    if violators.any():
+        n = int(violators.sum())
+        worst = ts[violators].max().date()
+        boundary = "before" if strict else "on or before"
+        raise AssertionError(
+            f"Leak detected: {n} row(s) dated past the cutoff "
+            f"(features must be {boundary} {cutoff.date()}; worst offender {worst})."
+        )
+
+
+def train_holdout_split(
+    df: pd.DataFrame,
+    *,
+    horizon_days: int = HORIZON_DAYS,
+    date_col: str = "date",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split into a training set and a time-based holdout = the last ``horizon_days``.
+
+    The holdout mirrors the real forecast horizon (16 days) and comes strictly *after*
+    the training data, so local RMSLE scores behave like the leaderboard and no future
+    day leaks into training (Constitution IV; random K-fold is forbidden for time series).
+
+    Used only for *measuring* models. The final model is re-fit on the full ``df``
+    (including the holdout days) before predicting the real ``test.csv``.
+
+    Args:
+        df: A frame with a datetime ``date_col`` (e.g. gap-free reindexed train).
+        horizon_days: Length of the holdout window. Defaults to 16.
+        date_col: Name of the daily date column.
+
+    Returns:
+        ``(train, holdout)``. With data ending 2017-08-15, the holdout is
+        2017-07-31 → 2017-08-15 and train is everything before 2017-07-31.
+
+    Raises:
+        AssertionError: If either split is empty, the holdout does not strictly follow
+            train, or the holdout does not cover exactly ``horizon_days`` distinct dates.
+    """
+    last_day = df[date_col].max()
+    holdout_start = last_day - pd.Timedelta(days=horizon_days - 1)
+
+    train = df[df[date_col] < holdout_start]
+    holdout = df[df[date_col] >= holdout_start]
+
+    assert not train.empty, "Training split is empty — check the date column / horizon."
+    assert not holdout.empty, "Holdout split is empty — check the date column / horizon."
+    assert train[date_col].max() < holdout[date_col].min(), (
+        "Holdout must strictly follow training data (time leak): "
+        f"train ends {train[date_col].max().date()}, "
+        f"holdout starts {holdout[date_col].min().date()}."
+    )
+    n_holdout_days = holdout[date_col].nunique()
+    assert n_holdout_days == horizon_days, (
+        f"Holdout covers {n_holdout_days} distinct dates, expected {horizon_days}."
+    )
+
+    return train, holdout
+
+
+def log_iteration(
+    stage: str,
+    rmsle_value: float,
+    notes: str = "",
+    *,
+    log_path: str | Path = ITERATION_LOG,
+) -> str:
+    """Append one iteration to ``iteration_log.md`` and return the delta string.
+
+    Records ``stage`` (the technique tried), its holdout ``rmsle_value``, and the delta
+    versus the best score logged so far (negative = improvement, flagged ✅). This makes
+    each technique's incremental effect traceable across the project.
+
+    The first real entry replaces the "baseline pending" placeholder row. The running
+    best is parsed from the existing table, so this is the single source of progress.
+
+    Args:
+        stage: Short label, e.g. "baseline: seasonal-naive" or "deterministic + weekly Fourier".
+        rmsle_value: Holdout RMSLE for this iteration.
+        notes: Optional free-text note for the row.
+        log_path: Target log file (defaults to repo-root ``iteration_log.md``).
+
+    Returns:
+        The delta cell text that was written (e.g. ``"-0.01234 (better)"`` or ``"-"`` for
+        the first entry).
+    """
+    log_path = Path(log_path)
+    existing = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+
+    prev_scores: list[float] = []
+    kept_lines: list[str] = []
+    for line in existing.splitlines():
+        if "baseline pending" in line:
+            continue  # drop the placeholder once a real entry exists
+        kept_lines.append(line)
+        if line.lstrip().startswith("|"):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) >= 2:
+                try:
+                    prev_scores.append(float(cells[1]))
+                except ValueError:
+                    pass  # header / separator / non-numeric cell
+
+    if prev_scores:
+        delta = rmsle_value - min(prev_scores)
+        mark = "(better)" if delta < 0 else ("(same)" if delta == 0 else "(worse)")
+        delta_str = f"{delta:+.5f} {mark}"
+    else:
+        delta_str = "-"  # first entry: nothing to compare against
+
+    row = f"| {stage} | {rmsle_value:.5f} | {delta_str} | {notes} |"
+    body = "\n".join(kept_lines).rstrip()
+    log_path.write_text(f"{body}\n{row}\n", encoding="utf-8")
+    return delta_str

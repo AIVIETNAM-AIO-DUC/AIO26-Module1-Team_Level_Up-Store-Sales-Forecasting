@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# uv / virtual environment
+.venv/
+
+# Generated artifacts
+submissions/*.csv
+
+# Internal planning/workflow files (not shared via git)
+.specify/
+specs/
+
+# AI assistant config & scratch (local only)
+.claude/
+CLAUDE.md
+Test.ipynb
+
+# Competition data — each teammate downloads it themselves (see README.md)
+store-sales-data/
