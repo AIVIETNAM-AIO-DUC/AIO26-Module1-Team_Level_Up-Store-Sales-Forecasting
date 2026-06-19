@@ -26,8 +26,6 @@ permalink: /
     <a href="#rmsle" class="navlink">RMSLE (try it)</a>
     <a href="#fourier" class="navlink">Seasonality &amp; Fourier</a>
     <a href="#laghorizon" class="navlink">The 16-day lag horizon</a>
-    <div class="grp">Run it</div>
-    <a href="#reproduce" class="navlink">Reproduce the numbers</a>
   </nav>
 
   <main>
@@ -646,29 +644,6 @@ predict next Tuesday = last Tuesday's sales
         booster — never a replacement.</p></div>
       <p class="muted"><strong>Where:</strong> lag/rolling features in <code>src/features.py</code>;
       enforced by the base-lag ≥ 16 guard in <code>src/validation.py :: assert_no_leak()</code>.</p>
-    </section>
-
-    <!-- ============ REPRODUCE ============ -->
-    <section class="block" id="reproduce">
-      <div class="eyebrow">Run it yourself</div>
-      <h3>Reproduce the numbers</h3>
-      <p>Everything runs inside the uv-managed environment:</p>
-      <pre># Confirm the closed-day gaps and the reindex fix
-uv run python -c "
-import sys; sys.path.insert(0,'.')
-from src import data
-t = data.load_train(); r = data.reindex_series_gapfree(t)
-print('inserted closed-days:', int(r['was_closed'].sum()))   # 7128
-"
-
-# Confirm the oil blanks
-uv run python -c "
-import sys; sys.path.insert(0,'.')
-from src import data
-print('oil null prices:', int(data.load_oil()['dcoilwtico'].isna().sum()))  # 43
-"</pre>
-      <p class="muted">This is a living guide. As each planned fix lands, update the status badges and
-      the matching section.</p>
     </section>
 
     <footer>

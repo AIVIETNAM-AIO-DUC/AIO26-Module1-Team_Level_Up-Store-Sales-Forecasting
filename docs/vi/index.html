@@ -26,8 +26,6 @@ permalink: /vi/
     <a href="#rmsle" class="navlink">RMSLE (thử ngay)</a>
     <a href="#fourier" class="navlink">Seasonality &amp; Fourier</a>
     <a href="#laghorizon" class="navlink">Lag horizon 16 ngày</a>
-    <div class="grp">Chạy thử</div>
-    <a href="#reproduce" class="navlink">Tái tạo các con số</a>
   </nav>
 
   <main>
@@ -659,29 +657,6 @@ dự đoán Thứ Ba tới   = doanh số Thứ Ba tuần trước
         bên trên như booster ngắn hạn — không bao giờ thay thế.</p></div>
       <p class="muted"><strong>Ở đâu:</strong> các feature lag/rolling trong <code>src/features.py</code>;
       được thực thi bởi guard base-lag ≥ 16 trong <code>src/validation.py :: assert_no_leak()</code>.</p>
-    </section>
-
-    <!-- ============ REPRODUCE ============ -->
-    <section class="block" id="reproduce">
-      <div class="eyebrow">Tự chạy thử</div>
-      <h3>Tái tạo các con số</h3>
-      <p>Mọi thứ chạy bên trong môi trường do uv quản lý:</p>
-      <pre># Xác nhận khoảng trống ngày đóng cửa và bản vá reindex
-uv run python -c "
-import sys; sys.path.insert(0,'.')
-from src import data
-t = data.load_train(); r = data.reindex_series_gapfree(t)
-print('inserted closed-days:', int(r['was_closed'].sum()))   # 7128
-"
-
-# Xác nhận các ô trống của oil
-uv run python -c "
-import sys; sys.path.insert(0,'.')
-from src import data
-print('oil null prices:', int(data.load_oil()['dcoilwtico'].isna().sum()))  # 43
-"</pre>
-      <p class="muted">Đây là một hướng dẫn sống. Khi từng bản vá dự kiến được hoàn thành, hãy cập
-      nhật các badge trạng thái và phần tương ứng.</p>
     </section>
 
     <footer>
