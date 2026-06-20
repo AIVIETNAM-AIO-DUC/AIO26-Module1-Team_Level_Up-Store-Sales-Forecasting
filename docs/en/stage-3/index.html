@@ -1,0 +1,94 @@
+---
+layout: default
+title: Stage 3 — Features · Store Sales Forecasting
+lang: en
+permalink: /en/stage-3/
+journey: stage-3
+sections:
+  - { id: lags,     label: "Lag & rolling features" }
+  - { id: holiday,  label: "Holiday features" }
+  - { id: payday,   label: "Payday features" }
+  - { id: promo,    label: "Promotion feature" }
+  - { id: oil,      label: "Oil feature" }
+  - { id: quake,    label: "Earthquake-window flag" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Stage 3 · learned features on top of the backbone</div>
+  <h2>Lags, holidays, promotions, oil, earthquake</h2>
+  <p class="lead">Stage 3 adds the features that <em>depend on past sales or external context</em>
+  — everything <a href="{{ '/en/stage-2/' | relative_url }}">Stage 2</a>'s date-only backbone cannot
+  see. Every feature has to clear the <strong>no leakage</strong> and <strong>lag ≥ 16</strong>
+  rules.</p>
+  <p class="muted">Source: per-feature files under <code>analyze/concepts/*</code> and
+  <code>analyze/data-traps/*</code>.</p>
+</header>
+
+<section class="block" id="lags">
+  <div class="eyebrow">Stage 3 · short-horizon booster</div>
+  <h3>Lag &amp; rolling features</h3>
+  <p>Per series: <code>lag_16</code>, <code>lag_17</code>, …, and rolling windows
+  <em>anchored at <code>shift(16)</code></em> (e.g. 7-day rolling mean of sales as of 16 days ago).
+  Same shape, different statistic — they tell the model "what level was this series at, 16+ days
+  ago." For <code>transactions</code> (<a href="{{ '/en/stage-0/#trap-6' | relative_url }}">Trap 6</a>),
+  lag-only — never same-day.</p>
+  <p>Why ≥ 16? Spelled out in
+  <a href="{{ '/en/stage-2/#laghorizon' | relative_url }}">Stage 2 · lag horizon</a>.</p>
+</section>
+
+<section class="block" id="holiday">
+  <div class="eyebrow">Stage 3 · the effective calendar</div>
+  <h3>Holiday features</h3>
+  <p>Build the <strong>effective</strong> calendar from <code>holidays_events.csv</code>: drop the
+  12 <code>transferred = True</code> originals, honor the matching Transfer / Bridge / Work Day
+  rows, scope by locale (National → all stores, Regional → that state, Local → that city). Output
+  one or more clean flags per row. Don't shove the raw rows in — see
+  <a href="{{ '/en/stage-0/#trap-3' | relative_url }}">Trap 3</a> for why.</p>
+</section>
+
+<section class="block" id="payday">
+  <div class="eyebrow">Stage 3 · payday wave</div>
+  <h3>Payday features (a wave, not a flag)</h3>
+  <p>From <a href="{{ '/en/stage-0/#calendar' | relative_url }}">Stage 0</a>: the naive "is it the
+  15th?" flag is ≈ 1.01× (negligible), but a real ≈ <strong>1.24×</strong> cycle exists across
+  the month. Encode <strong>days-since-payday</strong> or a short post-payday window — that lets
+  the model express the wave smoothly.</p>
+</section>
+
+<section class="block" id="promo">
+  <div class="eyebrow">Stage 3 · the easy one</div>
+  <h3>Promotion feature</h3>
+  <p><code>onpromotion</code> is delivered same-day in the test horizon (no nulls), so we feed it
+  directly to the model — no lag. It has <strong>no signal before 2014-04-01</strong>, so don't
+  design features that assume it has always existed.</p>
+</section>
+
+<section class="block" id="oil">
+  <div class="eyebrow">Stage 3 · oil</div>
+  <h3>Oil feature (forward-filled, modest expectations)</h3>
+  <p>Forward-fill first (no interpolation — that peeks at the future, see
+  <a href="{{ '/en/stage-0/#trap-2' | relative_url }}">Trap 2</a>). Use as a feature, but remember
+  Stage 0's bonus result: the raw oil↔sales correlation of <strong>−0.62</strong>
+  <strong>collapses to ≈ 0.05</strong> after detrending. Don't expect a miracle; the holdout
+  decides.</p>
+</section>
+
+<section class="block" id="quake">
+  <div class="eyebrow">Stage 3 · label, don't delete</div>
+  <h3>Earthquake-window flag</h3>
+  <p>A deliberately generous binary (or decaying) flag spanning ≈ 2016-04-16 → mid-May 2016. From
+  <a href="{{ '/en/stage-0/#anomalies' | relative_url }}">Stage 0</a>: the acute spike (≈ 1.41×,
+  peak 1.76× on Apr 18) is only <strong>~1 week</strong> — but a generous window is fine; the
+  model can downweight the tail.</p>
+
+  <div class="callout leak"><span class="tag">Stage 3 in one sentence</span>
+    <p style="margin:.4em 0 0">Every new column is <em>knowable at prediction time</em>: lags
+    reach back ≥ 16 days; oil is forward-filled; transactions are lag-only; promo is the
+    leak-free same-day signal. <code>assert_no_leak()</code> raises the moment you forget.</p></div>
+  <p class="muted"><strong>Where:</strong> <code>src/features.py</code> (every feature builder
+  composes through here).</p>
+</section>
+
+<footer>
+  Next: <a href="{{ '/en/stage-4/' | relative_url }}">Stage 4 — Hybrid &amp; submission</a>.
+</footer>

@@ -1,0 +1,372 @@
+---
+layout: default
+title: Stage 0 — EDA · Store Sales Forecasting
+lang: en
+permalink: /en/stage-0/
+journey: stage-0
+sections:
+  - { id: overview,    label: "Overview & integrity" }
+  - { id: trend,       label: "Trend over time" }
+  - { id: seasonality, label: "Seasonality + periodogram" }
+  - { id: calendar,    label: "Calendar & holidays" }
+  - { id: promo-oil,   label: "Promotions & oil" }
+  - { id: anomalies,   label: "Anomalies" }
+  - { id: traps,       label: "The 6 silent traps" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Stage 0 · look before you model</div>
+  <h2>EDA — the evidence behind every later decision</h2>
+  <p class="lead">Stage 0 is the learner's first real step: <em>look</em>, count, and check the
+  data is what we think it is before building anything. Every modeling choice in Stages 1–4
+  traces back to a finding on this page.</p>
+  <p class="muted">Source: <code>analyze/eda/*</code> and <code>analyze/data-traps/*</code>. Every
+  number here has a <code>## Verify</code> snippet on its source page.</p>
+</header>
+
+<section class="block" id="overview">
+  <div class="eyebrow">Stage 0 — EDA · overview</div>
+  <h3>Data integrity &amp; the gap-free reindex</h3>
+  <p>The 7 CSVs load cleanly; the headline counts confirm
+  <strong>54 stores × 33 families = 1,782 series</strong> over 1,688 days. The first repair —
+  Stage 0's only structural change — is rebuilding every series onto a complete daily calendar
+  (see <a href="#trap-1">Trap 1</a>). Read the arithmetic:</p>
+  <pre>original rows   : 3,000,888    <b>← what Kaggle gave us</b>
+reindexed rows  : 3,008,016    <b>← after filling gaps</b>
+expected        : 1,782 × 1,688 = 3,008,016
+rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></pre>
+  <p class="muted">Total = product, and 7,128 / 1,782 = 4 — clean evidence the reindex did
+  exactly the right thing. <strong>Where:</strong> <code>src/data.py :: reindex_series_gapfree()</code>;
+  guarded by <code>assert_gapfree()</code>.</p>
+</section>
+
+<section class="block" id="trend">
+  <div class="eyebrow">Stage 0 — EDA · trend</div>
+  <h3>The slow drift over ~4.6 years</h3>
+  <p>The first thing we notice: sales are not stationary — they're growing.</p>
+  <ul>
+    <li><strong>Mean daily total roughly doubles</strong>: ~<strong>386k</strong> in 2013 →
+    ~<strong>856k</strong> in 2017.</li>
+    <li><strong>Growth decelerates</strong>: big early jumps, smaller later ones — a curve, not a
+    straight line.</li>
+    <li><strong>Heavy-tailed families</strong>: the top ~6 families account for ~<strong>83%</strong>
+    of all sales (GROCERY I dominates); many families are tiny.</li>
+    <li><strong>Shape is shared, size is not</strong>: most families show the same upward drift +
+    seasonal wiggle, but on wildly different scales.</li>
+  </ul>
+  <div class="callout key"><span class="tag">Implication for modeling</span>
+    <p style="margin:.4em 0 0">A trend term is essential, and we should allow <em>mild curvature</em>
+    (a straight line under-shoots one end and over-shoots the other). Model per series/family in
+    <code>log1p</code> space so small families aren't swamped by the giants. Mechanics in
+    <a href="{{ '/en/stage-2/' | relative_url }}">Stage 2</a>.</p></div>
+</section>
+
+<section class="block" id="seasonality">
+  <div class="eyebrow">Stage 0 — EDA · seasonality</div>
+  <h3>Two repeating rhythms: weekly &amp; annual</h3>
+
+  <h4>Weekly</h4>
+  <p>Weekend runs ≈ <strong>39% above</strong> weekday average — the weekend/weekday ratio is
+  ≈ <strong>1.39</strong>. <strong>Sunday</strong> peaks (≈ 821,794), <strong>Thursday</strong>
+  troughs (≈ 503,173). That's the chain-wide average; <em>individual series differ</em> — store 1's
+  GROCERY I actually <em>dips</em> on Sunday.</p>
+
+  <div class="card">
+    <h4 style="margin-top:0">Weekly shape — store 1, GROCERY I (mean sales by weekday, real)</h4>
+    <div class="chart" id="weekChart"></div>
+    <div class="xaxis" id="weekAxis"></div>
+    <p class="muted" style="margin-top:12px">Roughly flat Mon–Sat (~2.3–2.8k) with a sharp Sunday
+    dip to ~1031. A weekend-<em>peaking</em> series would simply have a different shape — and the
+    model adapts per series.</p>
+  </div>
+
+  <h4>Annual</h4>
+  <p>Clear <strong>December peak</strong> (≈ 782,483 mean per month) and
+  <strong>February trough</strong> (≈ 571,895), with a July bump. We used <em>mean</em>-per-month
+  (not sum) because training ends mid-Aug 2017, so Sep–Dec have one fewer year of data. Even
+  missing its highest-sales year, December still tops the profile — that's how strong the holiday
+  surge is.</p>
+
+  <h4 id="periodogram">Discovery: the periodogram (a "prism" for time series)</h4>
+  <p>We don't have to <em>assume</em> the data has a weekly cycle — we can let the data
+  <strong>show</strong> it. A <strong>periodogram</strong> splits the wiggly daily-totals curve
+  into pure sin/cos waves of every possible period and measures how much of the variation lives
+  at each cycle length. A tall spike at 7 days means "a strong 7-day repeat lives in here." The
+  tool that does the splitting is the <strong>FFT</strong> — think of it as a "cycle-finder."</p>
+
+  <p>The FFT speaks in <em>frequency</em> (cycles/day); we think in <em>period</em> (days/cycle).
+  <code>period = 1 / frequency</code>. Long, slow cycles → low frequency; short, fast cycles →
+  high frequency.</p>
+
+  <p>For each candidate cycle the FFT fits a sin and a cos to the data and reads off two weights
+  <em>a</em>, <em>b</em>. The <strong>power</strong> at that cycle is
+  <code>a² + b²</code> — "how much energy lives at this period," regardless of where its peak
+  falls. Two presentation choices keep the picture honest:</p>
+  <ul>
+    <li><strong>Subtract the mean</strong> first so the average level doesn't dominate at
+    frequency 0.</li>
+    <li><strong>Show 2–60 days on a log y-axis</strong> so the slow multi-year growth doesn't dwarf
+    the weekly spike, and smaller spikes stay visible.</li>
+  </ul>
+
+  <div class="callout key"><span class="tag">What ours shows</span>
+    <p style="margin:.4em 0 0">Tallest spike at <strong>7 days</strong> (weekly) → a clear second
+    spike at <strong>3.5 days</strong> (the 2nd harmonic, present because the weekend jump is sharp,
+    not a smooth sine) → a minor bump near <strong>15 days</strong>. The annual cycle is outside
+    the 2–60 band and ~4.6 years is too few repeats to resolve cleanly — that's why the annual
+    signal is read from the month profile above, not the periodogram.</p></div>
+
+  <div class="callout tip"><span class="tag">Implication for modeling</span>
+    <p style="margin:.4em 0 0"><strong>~2–3 weekly</strong> Fourier harmonics (the sharp weekend
+    jump needs the 3.5-day 2nd harmonic) and <strong>~3–5 annual</strong> harmonics for the smooth
+    yearly shape. Leave the sharp December spike to explicit <em>holiday features</em>, not more
+    harmonics. Mechanics in <a href="{{ '/en/stage-2/#fourier' | relative_url }}">Stage 2 · Fourier</a>.</p></div>
+  <p class="muted"><strong>Reference:</strong> <code>analyze/concepts/periodogram.md</code>,
+  <code>analyze/eda/03-seasonality.md</code>.</p>
+</section>
+
+<section class="block" id="calendar">
+  <div class="eyebrow">Stage 0 — EDA · calendar effects</div>
+  <h3>Holidays and paydays — not what they look like</h3>
+
+  <h4>The holiday table is NOT a yes/no flag</h4>
+  <p>350 rows. <strong>12</strong> have <code>transferred = True</code> (the holiday did
+  <em>not</em> happen on its listed date — a separate <code>Transfer</code> row carries the real
+  date). There are <code>Bridge</code> days and <strong>5</strong> <code>Work Day</code> rows
+  (a normally-off day made into a working day). <code>locale</code> is National / Regional / Local
+  — so a holiday doesn't apply to every store.</p>
+
+  <h4>National-holiday lift</h4>
+  <p>82 national day-off dates in the train span. Open national holidays average ≈
+  <strong>1.20×</strong> a normal day (≈ 756k vs ≈ 632k); the 4 Christmases = <strong>0</strong>
+  (closed). <em>Caveat:</em> not weekday-controlled and smaller than the weekly swing (≈ 1.39), so
+  treat 1.20 as suggestive, not precise.</p>
+
+  <h4>Payday is a wave, not a single-day spike</h4>
+  <p>A naive "is it the 15th or month-end?" flag gives only ≈ <strong>1.01×</strong> — negligible.
+  But the day-of-month profile reveals a real cycle: a <strong>start-of-month surge</strong> (day 2
+  ≈ 743k vs mid-month trough ≈ 599k → ≈ <strong>1.24×</strong>) and a smaller post-15th bump.</p>
+
+  <div class="callout tip"><span class="tag">Implication for modeling</span>
+    <p style="margin:.4em 0 0">Build an <strong>effective holiday calendar</strong> (reconcile
+    transferred / bridge / work-day; scope by locale: National → all stores, Regional → that state,
+    Local → that city). Encode <strong>days-since-payday</strong> or a short post-payday window —
+    not a single-day flag. Implemented in <a href="{{ '/en/stage-3/' | relative_url }}">Stage 3</a>.</p></div>
+  <p class="muted"><strong>Reference:</strong> <code>analyze/eda/04-calendar-holidays.md</code>,
+  <code>analyze/data-traps/03-holidays.md</code>.</p>
+</section>
+
+<section class="block" id="promo-oil">
+  <div class="eyebrow">Stage 0 — EDA · external signals</div>
+  <h3>Promotions and oil price</h3>
+
+  <h4><code>onpromotion</code> — leak-free, same-day</h4>
+  <p>Present in both train and test with <strong>0</strong> test nulls (promotions are planned
+  ahead), so we feed it directly to the model without lagging. Started <strong>2014-04-01</strong>
+  (all zeros before); <strong>20.4%</strong> of open rows have a promotion; mean sales rises
+  steeply across promo buckets.</p>
+  <div class="callout leak"><span class="tag">Don't size the lift from EDA</span>
+    <p style="margin:.4em 0 0">The raw promo lift is doubly confounded — by <em>family</em> (big
+    families promote <em>and</em> sell more) and by <em>time/trend</em> (promo rows are all
+    2014-04+, the higher-trend period). Leave the magnitude to the model; remember it has
+    <strong>no signal for 2013–early 2014</strong>.</p></div>
+
+  <h4>Oil — gap-fill first, then judge</h4>
+  <p>1,218 trading-day rows; <strong>43</strong> blank prices (including the first day);
+  <strong>486</strong> missing calendar days (weekends/holidays) = <strong>529</strong> holes on a
+  daily calendar → <strong>0</strong> after forward-fill (+ a single back-fill for the leading
+  2013-01-01 blank). Forward-fill is past-only (leak-free); interpolation is rejected because it
+  averages a value <em>after</em> the gap — that's the future.</p>
+
+  <h4>Oil is a candidate, not a proven driver</h4>
+  <p>Oil price crashed (2014 avg ≈ 93 → 2016 avg ≈ 43) while sales grew, so a raw correlation
+  looks dramatic at <strong>−0.62</strong>. Detrended (month-over-month % changes) it
+  <strong>collapses to ≈ 0.05 ≈ 0</strong>. The strong "relationship" was a trend artifact — same
+  trap as crediting a routine pattern to a special event. Oil may still matter per-region/family
+  or lagged — the holdout decides.</p>
+
+  <p class="muted"><strong>Reference:</strong> <code>analyze/eda/05-promotions-oil.md</code>,
+  <code>analyze/data-traps/02-oil-gaps.md</code>,
+  <code>analyze/data-traps/06-transactions-past-only.md</code>.</p>
+</section>
+
+<section class="block" id="anomalies">
+  <div class="eyebrow">Stage 0 — EDA · one-off events</div>
+  <h3>The 2016 earthquake — anatomy of an anomaly</h3>
+  <p>A magnitude-7.8 earthquake hit on <strong>2016-04-16</strong>. Versus an 8-week pre-quake
+  baseline (≈ 764,910):</p>
+  <ul>
+    <li><strong>Week +0</strong> (the impact week) jumped to ≈ <strong>1.41×</strong> on relief
+    buying; peak <strong>2016-04-18</strong> hit 1,345,921 ≈ <strong>1.76×</strong>.</li>
+    <li><strong>Week +1</strong> was already back to ≈ <strong>1.00×</strong>. The acute spike is
+    ≈ <strong>1 week</strong>, not weeks.</li>
+    <li>The apparent "Week +2 echo" is <strong>not</strong> the earthquake — it's the
+    start-of-month payday surge + May 1 Labour Day. Proof: the same Apr 30 – May 6 window is
+    actually <em>higher</em> in 2017 (≈ 959k, no quake) than 2016 (≈ 901k).</li>
+  </ul>
+  <div class="callout tip"><span class="tag">Lesson</span>
+    <p style="margin:.4em 0 0">Don't credit a routine pattern to a special event — the same
+    spurious-correlation trap as oil → sales. And don't <em>delete</em> anomalous rows; that
+    re-opens the gap-free calendar. <strong>Label</strong> them with an earthquake-window flag
+    (a deliberately generous ≈ 2016-04-16 → mid-May envelope) so the model absorbs the shock as a
+    known event. The holidays file even marks the aftermath as an <code>Event</code> row
+    <code>Terremoto Manabi+15</code>.</p></div>
+  <h4>Closures, while we're here</h4>
+  <p>Only the 4 Dec 25 are true <em>gaps</em> (zero sales, restored in the reindex). The 4 Jan 1
+  are <em>recorded</em> near-zero days (stores barely open) and are already covered by calendar
+  features — no extra flag needed.</p>
+  <p class="muted"><strong>Reference:</strong> <code>analyze/eda/06-anomalies.md</code>,
+  <code>analyze/data-traps/04-earthquake-anomaly.md</code>.</p>
+</section>
+
+<section class="block" id="traps">
+  <div class="eyebrow">Stage 0 — EDA · what could go wrong</div>
+  <h3>The six silent traps</h3>
+  <p>Ordered easiest → subtlest. Each follows the same shape:
+  <em>what you see → why it quietly hurts → the fix → where it lives in code.</em> A theme runs
+  through several — <strong>leakage</strong>: letting the model use information it would not have
+  at prediction time.</p>
+
+  <details class="trap" id="trap-1" open>
+    <summary><span class="arrow">▶</span><span class="t-num">1</span>
+      <span class="grow">Missing calendar days (the counting trap)</span>
+      <span class="status s-done">✅ Fixed</span></summary>
+    <div class="body">
+      <p><strong>What you see:</strong> the store closes on some days — notably every Dec 25 — so
+      those dates have <em>no row at all</em>. They're absent, not recorded as a zero.
+      Series <code>store=1, AUTOMOTIVE</code> has 1,684 rows over a 1,688-day span → 4 missing
+      days, all Christmases.</p>
+      <p><strong>Why it quietly hurts:</strong> time-series features count <em>rows</em>. After a
+      gap, "7 rows back" is no longer "7 days back" — your "same weekday last week" lag points at
+      the wrong day, and seasonal sine/cosine terms slide out of phase. Nothing errors; the model
+      just gets worse.</p>
+      <p><strong>The fix:</strong> rebuild each series onto a complete daily calendar and fill the
+      missing days with <code>sales = 0</code> (the store sold nothing — which is <em>true</em>,
+      and keeps the row spacing regular). Tag each inserted row <code>was_closed = True</code> so
+      nothing is lost.</p>
+      <pre>  3,000,888  (gaps where the store was shut)
++     7,128  (4 Christmases × 1,782 series, restored as sales = 0)
+─────────
+  3,008,016  (a complete, gap-free grid: 1,782 series × 1,688 days)</pre>
+      <p class="muted"><strong>Where:</strong> <code>src/data.py :: reindex_series_gapfree()</code>,
+      checked by <code>src/validation.py :: assert_gapfree()</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-2">
+    <summary><span class="arrow">▶</span><span class="t-num">2</span>
+      <span class="grow">Oil price gaps + blanks (your first taste of leakage)</span>
+      <span class="status s-plan">⏳ Planned</span></summary>
+    <div class="body">
+      <p><strong>What you see:</strong> Ecuador's economy is oil-dependent, so oil price is a
+      plausible driver. But <code>oil.csv</code> has two holes: oil only trades on business days
+      (weekends/holidays have no row), and <strong>43 rows</strong> exist with an empty price.</p>
+      <p><strong>The fix:</strong> build a continuous daily calendar, left-join oil, then
+      <strong>forward-fill</strong> — carry the last known price forward (one leading back-fill for
+      the very first blank day).</p>
+      <div class="callout leak">
+        <span class="tag">Leakage warning</span>
+        <p style="margin:.4em 0 0">Why not interpolation? It averages the value <em>before</em>
+        and <em>after</em> the gap — and "after" is the <strong>future</strong>. Using it means the
+        model peeks at information it wouldn't have. Forward-fill only looks backward, so it's safe.</p>
+      </div>
+      <p class="muted"><strong>Where:</strong> oil features in <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-3">
+    <summary><span class="arrow">▶</span><span class="t-num">3</span>
+      <span class="grow">Holidays aren't a simple yes/no (domain modeling)</span>
+      <span class="status s-plan">⏳ Planned</span></summary>
+    <div class="body">
+      <p><strong>What you see:</strong> <code>holidays_events.csv</code> looks like a "was it a
+      holiday?" table, but isn't. A row with <code>transferred = True</code> means the holiday did
+      <em>not</em> happen on its listed date — a separate <code>Transfer</code> row carries the
+      real date. There are also <code>Bridge</code> days and <code>Work Day</code> rows, and
+      <code>locale</code> (National/Regional/Local) means a holiday doesn't apply to every store.</p>
+      <p><strong>The fix:</strong> compute an <strong>effective holiday calendar</strong> — drop the
+      transferred originals, honor the Transfer/Bridge/Work Day rows, and scope by locale:
+      National → all stores; Regional → that state; Local → that city.</p>
+      <div class="callout tip"><span class="tag">Lesson</span>
+        <p style="margin:.4em 0 0">A column named like a feature isn't automatically a usable
+        feature. Understanding the domain is part of feature engineering.</p></div>
+      <p class="muted"><strong>Where:</strong> holiday features in <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-4">
+    <summary><span class="arrow">▶</span><span class="t-num">4</span>
+      <span class="grow">The 2016 earthquake anomaly</span>
+      <span class="status s-plan">⏳ Planned</span></summary>
+    <div class="body">
+      <p><strong>What you see:</strong> a magnitude-7.8 earthquake on <strong>2016-04-16</strong>
+      caused a relief-driven sales spike of ≈ 1.41× the pre-quake baseline (peak ≈ 1.76× on Apr 18).</p>
+      <p><strong>Why it quietly hurts:</strong> a one-off spike isn't a repeating pattern. Left
+      unmarked, your trend and seasonality try to "explain" it and get bent out of shape.</p>
+      <p><strong>The fix:</strong> add a binary (or decaying) <strong>earthquake-window flag</strong>
+      (~2016-04-16 → mid-May) so the model absorbs the spike as a known event. We do
+      <em>not</em> delete those rows — that would re-open a hole in the gap-free index from Trap 1.</p>
+      <div class="callout tip"><span class="tag">Lesson</span>
+        <p style="margin:.4em 0 0">Don't delete anomalies — <em>label</em> them.</p></div>
+      <p class="muted"><strong>Where:</strong> calendar features in <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-5">
+    <summary><span class="arrow">▶</span><span class="t-num">5</span>
+      <span class="grow">New / sparse series (the coverage trap)</span>
+      <span class="status s-plan">⏳ Planned</span></summary>
+    <div class="body">
+      <p><strong>What you see:</strong> some store + family pairs have little or no meaningful
+      history (a barely-selling family, or one that only started recently).</p>
+      <p><strong>Why it quietly hurts:</strong> a complex model can't learn a pattern that isn't
+      there — but the submission <strong>must</strong> contain a value for all 28,512 rows. A
+      missing/NaN prediction is invalid.</p>
+      <p><strong>The fix:</strong> for thin series, fall back to a simple
+      <strong>seasonal-naive / near-zero</strong> prediction. See
+      <a href="{{ '/en/stage-1/' | relative_url }}">Stage 1 baselines</a> for the mechanics.</p>
+      <p class="muted"><strong>Where:</strong> the fallback path in <code>src/models.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-6">
+    <summary><span class="arrow">▶</span><span class="t-num">6</span>
+      <span class="grow">Transactions are past-only (a hard constraint)</span>
+      <span class="status s-con">⚠️ Constraint</span></summary>
+    <div class="body">
+      <p><strong>What you see:</strong> <code>transactions.csv</code> is rich and tempting — but it
+      is <strong>not provided for the 16-day test horizon</strong>. You don't know a store's
+      transaction count on a day you're predicting.</p>
+      <div class="callout leak"><span class="tag">Leakage warning</span>
+        <p style="margin:.4em 0 0">Use same-day transactions and validation looks fantastic —
+        because in validation you happen to have that column. On the real future it doesn't exist,
+        so the model collapses.</p></div>
+      <p><strong>The fix:</strong> use transactions <strong>only as a lagged feature</strong>
+      (e.g. transactions 7+ days ago, which <em>are</em> known by prediction time).</p>
+      <p class="muted"><strong>Where:</strong> lag features in <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <div class="card" style="margin-top:20px">
+    <h4 style="margin-top:0">Status at a glance</h4>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Trap</th><th>Problem</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Missing calendar days</td><td><span class="status s-done">✅ Fixed</span></td></tr>
+        <tr><td>2</td><td>Oil gaps + 43 blanks</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+        <tr><td>3</td><td>Transferred/bridge holidays</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+        <tr><td>4</td><td>2016 earthquake spike</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+        <tr><td>5</td><td>New/sparse series</td><td><span class="status s-plan">⏳ Planned</span></td></tr>
+        <tr><td>6</td><td>Transactions = past-only</td><td><span class="status s-con">⚠️ Constraint</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Next: <a href="{{ '/en/stage-1/' | relative_url }}">Stage 1 — Baseline</a>. The "Reference"
+  pointers above each link to one Markdown file under <code>analyze/eda/</code> or
+  <code>analyze/data-traps/</code>; each carries its own <code>## Verify</code> snippet.
+</footer>

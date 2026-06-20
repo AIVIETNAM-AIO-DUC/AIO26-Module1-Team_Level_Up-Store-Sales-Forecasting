@@ -1,0 +1,99 @@
+---
+layout: default
+title: Store Sales Time Series — Interactive Learner's Guide
+lang: en
+permalink: /en/
+journey: overview
+sections:
+  - { id: pillars,  label: "The four pillars" }
+  - { id: journey,  label: "The journey map" }
+  - { id: numbers,  label: "Numbers to remember" }
+---
+
+<header class="hero" id="intro">
+  <div class="eyebrow">Time-Series Forecasting · Corporación Favorita (Ecuador)</div>
+  <h2>Predicting supermarket sales — without fooling yourself</h2>
+  <p class="lead">Real data is rarely "wrong" in a way that throws an error. It's wrong in ways
+  that <em>silently</em> make your model worse and give you no clue why. This guide is split
+  into a Foundations page and four modeling stages — each a focused session that builds on
+  the previous and is scored on the same holdout.</p>
+  <div class="badge-row">
+    <span class="pill"><b>1,782</b> series</span>
+    <span class="pill"><b>16-day</b> horizon</span>
+    <span class="pill"><b>28,512</b> predictions</span>
+    <span class="pill">scored by <b>RMSLE</b></span>
+  </div>
+  <p class="muted">Every number in this guide is real — reproduced from the competition CSVs.
+  Companion docs: <code>analyze/README.md</code>, <code>analyze/concepts/*</code>,
+  <code>analyze/data-traps/*</code>, <code>analyze/eda/*</code>.</p>
+</header>
+
+<section class="block" id="pillars">
+  <div class="eyebrow">What this guide teaches</div>
+  <h3>Four pillars hold up everything else</h3>
+  <ol>
+    <li><strong>No leakage</strong> — never use a value you wouldn't have at prediction time.</li>
+    <li><strong>A gap-free calendar</strong> — "7 rows back" must mean "7 days back."</li>
+    <li><strong>Lags must clear the 16-day horizon</strong> — the floor is the horizon length.</li>
+    <li><strong>A time-respecting holdout</strong> — random K-fold cheats; the split must cut in time.</li>
+  </ol>
+  <p>If you internalize those four, the rest is mechanics. The
+  <a href="{{ '/en/foundations/' | relative_url }}">Foundations</a> page defines them in full
+  (plus RMSLE and an interactive calculator); each stage page is one more layer.</p>
+</section>
+
+<section class="block" id="journey">
+  <div class="eyebrow">How to read this</div>
+  <h3>The journey map</h3>
+  <p>Read in order — each page is one focused session. Status reflects what's in
+  <code>src/</code> today.</p>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+    <a href="{{ '/en/foundations/' | relative_url }}" class="kpi" style="text-decoration:none">
+      <div class="n" style="font-size:18px">Foundations</div>
+      <div class="l">What we predict · the data · RMSLE · holdout · 5 rules</div>
+    </a>
+    <a href="{{ '/en/stage-0/' | relative_url }}" class="kpi" style="text-decoration:none">
+      <div class="n" style="font-size:18px">Stage 0 — EDA</div>
+      <div class="l">Trend · seasonality + periodogram · holidays · oil · anomalies · the 6 traps</div>
+    </a>
+    <a href="{{ '/en/stage-1/' | relative_url }}" class="kpi" style="text-decoration:none">
+      <div class="n" style="font-size:18px">Stage 1 — Baseline</div>
+      <div class="l">Seasonal-naive &amp; near-zero — the number to beat</div>
+    </a>
+    <a href="{{ '/en/stage-2/' | relative_url }}" class="kpi" style="text-decoration:none">
+      <div class="n" style="font-size:18px">Stage 2 — Deterministic</div>
+      <div class="l">Trend + Fourier · the 16-day lag horizon</div>
+    </a>
+    <a href="{{ '/en/stage-3/' | relative_url }}" class="kpi" style="text-decoration:none">
+      <div class="n" style="font-size:18px">Stage 3 — Features</div>
+      <div class="l">Lags, holidays, promo, oil, earthquake — features on residuals</div>
+    </a>
+    <a href="{{ '/en/stage-4/' | relative_url }}" class="kpi" style="text-decoration:none">
+      <div class="n" style="font-size:18px">Stage 4 — Hybrid</div>
+      <div class="l">Combine · granularity · refit · the 28,512-row submission</div>
+    </a>
+  </div>
+</section>
+
+<section class="block" id="numbers">
+  <div class="eyebrow">Sanity checks</div>
+  <h3>Numbers to remember</h3>
+  <p>These reappear as cross-checks throughout. If a calculation contradicts one of these, the
+  calculation is wrong.</p>
+  <div class="kpis">
+    <div class="kpi"><div class="n">54</div><div class="l">stores</div></div>
+    <div class="kpi"><div class="n">33</div><div class="l">product families</div></div>
+    <div class="kpi"><div class="n">1,782</div><div class="l">series (54 × 33)</div></div>
+    <div class="kpi"><div class="n">1,688</div><div class="l">days of history</div></div>
+    <div class="kpi"><div class="n">16</div><div class="l">horizon days</div></div>
+    <div class="kpi"><div class="n">28,512</div><div class="l">submission rows (16 × 1,782)</div></div>
+  </div>
+</section>
+
+<footer>
+  Store Sales Time Series — A Learner's Interactive Guide · companion to
+  <code>analyze/README.md</code> and the per-topic Markdown under <code>analyze/</code>.
+  Numbers verified from the competition CSVs; every claim with a number has a
+  <code>## Verify</code> snippet on its source page.
+</footer>

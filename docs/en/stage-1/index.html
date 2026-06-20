@@ -1,0 +1,89 @@
+---
+layout: default
+title: Stage 1 — Baseline · Store Sales Forecasting
+lang: en
+permalink: /en/stage-1/
+journey: stage-1
+sections:
+  - { id: baseline, label: "Seasonal-naive & near-zero" }
+  - { id: gate,     label: "Who decides which rule" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Stage 1 · the floor any model must beat</div>
+  <h2>Forecast baselines: seasonal-naive &amp; near-zero</h2>
+  <p class="lead">The simplest possible ways to predict — no training, no maths. Stage 1's job is
+  to score these on the <a href="{{ '/en/foundations/#holdout' | relative_url }}">holdout</a> and
+  <strong>record the number to beat</strong>. They also serve as the <strong>fallback rules</strong>
+  for series too thin to model (see <a href="{{ '/en/stage-0/#trap-5' | relative_url }}">Trap 5</a>).</p>
+  <p class="muted">Source: <code>analyze/concepts/baselines.md</code>.</p>
+</header>
+
+<section class="block" id="baseline">
+  <div class="eyebrow">Stage 1 · two rules, no training</div>
+  <h3>The two baselines</h3>
+  <p>Both predict the <strong>future</strong> 16 days; neither changes past data.</p>
+
+  <details class="dd" open>
+    <summary><span class="lvl">how it works</span> Seasonal-naive = copy last week forward</summary>
+    <div class="body">
+      <p><strong>Naive</strong> = don't learn anything; copy the past forward.
+      <strong>Seasonal</strong> = copy from the same point in the previous cycle (here, the weekly
+      cycle).</p>
+      <pre>predict next Monday  = last Monday's sales
+predict next Tuesday = last Tuesday's sales
+…repeat last week's 7-day pattern across the 16-day horizon</pre>
+      <h4>Sample data — store 1, GROCERY I (real)</h4>
+      <p>The last known week (7 days ending Tue Aug 15, 2017):</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Last week</th><th class="num">Wed 8/9</th><th class="num">Thu 8/10</th><th class="num">Fri 8/11</th><th class="num">Sat 8/12</th><th class="num">Sun 8/13</th><th class="num">Mon 8/14</th><th class="num">Tue 8/15</th></tr></thead>
+        <tbody><tr><td>sales</td><td class="num">2719</td><td class="num">2591</td><td class="num">1270</td><td class="num">1630</td><td class="num">952</td><td class="num">2407</td><td class="num">2508</td></tr></tbody>
+      </table>
+      </div>
+      <p>Seasonal-naive copies each weekday forward — the 7-day pattern just repeats across the
+      horizon, preserving this series' own shape (here a Sunday dip to <strong>952</strong> against
+      midweek highs of ~2.5–2.7k).</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">how it works</span> Near-zero = "sells nothing → predict nothing"</summary>
+    <div class="body">
+      <p>If a series has essentially no sales ever, the safest forecast is <strong>≈ 0</strong>.
+      Example — <strong>store 1, BOOKS</strong>, whose last week is all zeros:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Last 7 days (store 1, BOOKS)</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th></tr></thead>
+      </table>
+      </div>
+      <p>→ predict <strong>0</strong> for all 16 horizon days. Nothing to copy.</p>
+    </div>
+  </details>
+</section>
+
+<section class="block" id="gate">
+  <div class="eyebrow">Stage 1 · routing</div>
+  <h3>Who decides which rule? (not the model)</h3>
+  <p>A common misconception: the trained model does <strong>not</strong> choose between the main
+  prediction, seasonal-naive, and near-zero. The choice is made <em>before</em> modeling by a
+  simple <strong>rule-based gate</strong> (an <code>if</code> check) on each series' history.
+  Thin series are peeled off and never reach the model.</p>
+  <pre>For each of the 1,782 series:
+   ├─ Has enough history?  ──►  use the MAIN model (the learned one)
+   └─ Too thin?            ──►  use a FALLBACK rule
+                                   ├─ a little history to copy  ►  seasonal-naive
+                                   └─ basically no sales ever   ►  near-zero (~0)</pre>
+  <p>A trained model is a function: it always returns a number — it can't output a blank. The
+  risk for a no-history series isn't emptiness; it's that the number is unreliable garbage. So
+  we route thin series around the model (the cleaner option), train only on healthy ones, then
+  stitch both prediction sets back together into all 28,512 rows — done in
+  <a href="{{ '/en/stage-4/' | relative_url }}">Stage 4</a>.</p>
+  <p class="muted"><strong>Where:</strong> the fallback path in <code>src/models.py</code>;
+  scored by <code>rmsle()</code> on the holdout, exactly like every later stage.</p>
+</section>
+
+<footer>
+  Next: <a href="{{ '/en/stage-2/' | relative_url }}">Stage 2 — Deterministic</a> (the first learned
+  model). Source: <code>analyze/concepts/baselines.md</code>.
+</footer>

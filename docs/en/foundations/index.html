@@ -1,0 +1,212 @@
+---
+layout: default
+title: Foundations — Store Sales Forecasting
+lang: en
+permalink: /en/foundations/
+journey: foundations
+sections:
+  - { id: predict, label: "What we predict" }
+  - { id: data,    label: "Meet the data" }
+  - { id: rmsle,   label: "RMSLE (try it)" }
+  - { id: holdout, label: "Honest holdout" }
+  - { id: rules,   label: "The 5 rules" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Foundations · read this once, reference forever</div>
+  <h2>The vocabulary every stage uses</h2>
+  <p class="lead">What we're predicting, the seven CSV inputs, the metric (with an interactive
+  calculator), the honest holdout, and the five rules that get enforced in code. Every later
+  stage assumes you've internalized this page.</p>
+</header>
+
+<section class="block" id="predict">
+  <div class="eyebrow">Foundations · what we predict</div>
+  <h3>What are we actually predicting?</h3>
+  <p>A supermarket chain in Ecuador wants to predict <strong>daily sales</strong>. There are
+  <strong>54 stores</strong>, each selling <strong>33 product families</strong> (BEVERAGES,
+  PRODUCE, AUTOMOTIVE, …), recorded <strong>once per day</strong>.</p>
+  <p>Given years of history (2013-01-01 → 2017-08-15), predict sales for the
+  <strong>next 16 days</strong> (2017-08-16 → 2017-08-31) for every store + family. That fixed
+  window has a name we reuse everywhere: the <strong>horizon</strong> (= 16 days).</p>
+
+  <div class="callout key">
+    <span class="tag">Key word · series</span>
+    <p style="margin:.4em 0 0">A <strong>series</strong> is the day-by-day sales history of
+    <em>one product family at one store</em> — the "thing that has a past and a future." Almost
+    every operation happens <em>per series</em>, never mixing across them.</p>
+  </div>
+
+  <pre>54 stores × 33 families = <b>1,782 series</b>
+16 days × 1,782 series  = <b>28,512 predictions</b>   ← exactly the rows we submit</pre>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">54</div><div class="l">stores</div></div>
+    <div class="kpi"><div class="n">33</div><div class="l">product families</div></div>
+    <div class="kpi"><div class="n">1,782</div><div class="l">series (54 × 33)</div></div>
+    <div class="kpi"><div class="n">1,688</div><div class="l">days of history</div></div>
+  </div>
+  <p class="muted">Hold on to <strong>1,782</strong> — it reappears as a sanity check throughout.</p>
+</section>
+
+<section class="block" id="data">
+  <div class="eyebrow">Foundations · the inputs</div>
+  <h3>Meet the data (look before you model)</h3>
+  <p>Before touching a model, look at what you have. Every file, verified:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>File</th><th class="num">Rows</th><th>What's in it</th></tr></thead>
+    <tbody>
+      <tr><td><code>train.csv</code></td><td class="num">3,000,888</td><td>id, date, store_nbr, family, sales, onpromotion · 2013-01-01 → 2017-08-15</td></tr>
+      <tr><td><code>test.csv</code></td><td class="num">28,512</td><td>same columns minus <code>sales</code> · the 16 days to predict</td></tr>
+      <tr><td><code>stores.csv</code></td><td class="num">54</td><td>store_nbr, city, state, type, cluster</td></tr>
+      <tr><td><code>transactions.csv</code></td><td class="num">83,488</td><td>date, store_nbr, transactions</td></tr>
+      <tr><td><code>oil.csv</code></td><td class="num">1,218</td><td>date, dcoilwtico (oil price) · <strong>43 prices are blank</strong></td></tr>
+      <tr><td><code>holidays_events.csv</code></td><td class="num">350</td><td>date, type, locale, locale_name, description, transferred · <strong>12 transferred</strong>, <strong>5 Work Day</strong></td></tr>
+      <tr><td><code>sample_submission.csv</code></td><td class="num">28,512</td><td>id, sales — the exact shape our output must have</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout tip">
+    <span class="tag">Use it · onpromotion</span>
+    <p style="margin:.4em 0 0">Unlike transactions (<a href="{{ '/en/stage-0/#trap-6' | relative_url }}">Trap 6</a>),
+    the promotion count <strong>is</strong> provided for the test horizon — promotions are planned
+    in advance — so it's a strong <em>and</em> leak-free predictor we feed directly (same-day, no
+    lag needed).</p>
+  </div>
+</section>
+
+<section class="block" id="rmsle">
+  <div class="eyebrow">Foundations · the metric · interactive</div>
+  <h3>The metric: RMSLE</h3>
+  <p>Read the name backwards and it's a recipe, one word per step:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Word</th><th>Step</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Error</strong></td><td>how wrong each prediction is: <code>prediction − actual</code></td></tr>
+      <tr><td><strong>Logarithmic</strong></td><td>but first take the <strong>log</strong> of both numbers</td></tr>
+      <tr><td><strong>Squared</strong></td><td>square each error (too-high and too-low both count)</td></tr>
+      <tr><td><strong>Mean</strong></td><td>average all those squared errors</td></tr>
+      <tr><td><strong>Root</strong></td><td>take the square root at the end</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
+
+  <div class="callout key"><span class="tag">Why the log?</span>
+    <p style="margin:.4em 0 0">It measures <strong>relative</strong> (ratio) error, not the raw
+    gap. Predict 15 when truth is 5, and predict 3,000 when truth is 1,000 — both are "3× too
+    high," equally bad. Because <code>log(a) − log(b) = log(a/b)</code>, RMSLE asks "how many
+    <em>times</em> off were you?" That's how a tiny family and a huge family count fairly.</p></div>
+
+  <p><code>log1p(x) = log(1+x)</code> so <code>log1p(0)=0</code> (no crash on zero sales); its
+  inverse <code>expm1</code> returns real units. Two consequences we apply to every model: we
+  <strong>train in log space</strong>, and we <strong>clip predictions to ≥ 0</strong>.</p>
+
+  <div class="card">
+    <h4 style="margin-top:0">Try it — RMSLE vs plain RMSE, side by side</h4>
+    <p class="muted">Edit the actuals and predictions. Negative predictions are auto-clipped to 0
+    before scoring (a negative would make <code>log1p</code> undefined). Loads with the guide's
+    verified example.</p>
+    <div class="calc">
+      <div class="rows">
+        <div class="hd"><div>actual</div><div>prediction</div><div>clipped</div></div>
+        <div class="r"><input class="ac" type="number" value="5"><input class="pr" type="number" value="15"><div class="clip"></div></div>
+        <div class="r"><input class="ac" type="number" value="1000"><input class="pr" type="number" value="3000"><div class="clip"></div></div>
+        <div class="r"><input class="ac" type="number" value="0"><input class="pr" type="number" value="-2"><div class="clip"></div></div>
+        <div class="r"><input class="ac" type="number" value="200"><input class="pr" type="number" value="195"><div class="clip"></div></div>
+      </div>
+      <div class="btnrow">
+        <button id="recalc">Recalculate</button>
+        <button class="ghost" id="reset">Reset to verified example</button>
+      </div>
+      <div class="scoreboard">
+        <div class="score rmse"><div class="lab">Plain RMSE (raw gap)</div><div class="val" id="rmseVal">—</div><div class="note">dominated by the biggest-scale row</div></div>
+        <div class="score rmsle"><div class="lab">RMSLE (ratio error)</div><div class="val" id="rmsleVal">—</div><div class="note">small &amp; huge families count fairly</div></div>
+      </div>
+    </div>
+  </div>
+  <p class="muted">With the default example the answers are <strong>RMSE ≈ 1000.0</strong> and
+  <strong>RMSLE ≈ 0.736</strong>. RMSE is almost entirely dictated by the 1000→3000 row; RMSLE
+  scores both "3× off" rows in the same ballpark.</p>
+  <p class="muted"><strong>Where:</strong> <code>src/validation.py :: rmsle()</code> and
+  <code>clip_nonneg()</code>.</p>
+</section>
+
+<section class="block" id="holdout">
+  <div class="eyebrow">Foundations · the scoreboard</div>
+  <h3>How do we know a model is good? An honest holdout</h3>
+  <p>A model always looks brilliant on the data it trained on — it has effectively seen the
+  answers. The only honest signal is its error on data it did <strong>not</strong> train on. We
+  keep a private slice of our own data as an instant, unlimited scoreboard: a
+  <strong>holdout</strong>.</p>
+
+  <div class="callout leak">
+    <span class="tag">Time-series rule</span>
+    <p style="margin:.4em 0 0">Random K-fold <strong>cheats</strong> here. Validate on a day in the
+    <em>middle</em> of history and the model trains on days that come <em>after</em> it — it sees
+    the future relative to what it predicts. The split must be a clean cut in <em>time</em>.</p>
+  </div>
+
+  <pre>train: 2013-01-01 ........... 2017-07-30  │  holdout: 2017-07-31 → 2017-08-15
+       (model learns from the past)        │  (model predicts forward, blind)</pre>
+  <p>We hold out the <strong>last 16 training days</strong> — same length, same "predict 16 days
+  forward" shape as the real task.</p>
+
+  <h4>The holdout is NOT <code>test.csv</code> — keep them straight</h4>
+  <div class="scroll">
+  <table>
+    <thead><tr><th></th><th>Holdout</th><th><code>test.csv</code></th></tr></thead>
+    <tbody>
+      <tr><td>Comes from</td><td>carved out of <code>train.csv</code></td><td>a separate file Kaggle provides</td></tr>
+      <tr><td>Dates</td><td>2017-07-31 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
+      <tr><td>Know the real sales?</td><td><strong>Yes</strong> — we just hide them</td><td><strong>No</strong> — that's what we predict</td></tr>
+      <tr><td>Who scores it</td><td><strong>we</strong> do, instantly, locally</td><td><strong>Kaggle</strong>, after we submit</td></tr>
+      <tr><td>Purpose</td><td>private rehearsal to compare models</td><td>the actual graded exam</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout tip"><span class="tag">Then retrain on everything</span>
+    <p style="margin:.4em 0 0">The last 16 days are hidden <em>only while comparing models</em>.
+    Once the best approach is picked, re-fit it on <strong>all</strong> training data (including
+    those last 16 days) before predicting the real <code>test.csv</code> — the most recent days
+    carry the freshest trend and seasonality.</p></div>
+  <p class="muted"><strong>Where:</strong> <code>src/validation.py :: train_holdout_split()</code>
+  does the split and asserts the ordering.</p>
+</section>
+
+<section class="block" id="rules">
+  <div class="eyebrow">Foundations · the guard rails</div>
+  <h3>The five rules that keep us honest</h3>
+  <p>Everything in Foundations distills into five rules — and they're <em>enforced in code</em>,
+  so a mistake fails loudly instead of silently corrupting a score.</p>
+  <div class="card">
+    <ol style="margin:0; padding-left:1.2em">
+      <li style="margin:.5em 0"><strong>No leakage.</strong> Every feature must be knowable at
+      prediction time. Lags use strictly past days; oil is forward-filled, never interpolated;
+      transactions are lag-only. <span class="muted">Guard: <code>assert_no_leak()</code>.</span></li>
+      <li style="margin:.5em 0"><strong>Gap-free before features.</strong> The Trap-1 reindex runs
+      <em>before</em> any lag or seasonal feature, so "7 rows back" always means "7 days back."
+      <span class="muted">Guard: <code>assert_gapfree()</code>.</span></li>
+      <li style="margin:.5em 0"><strong>Lags must clear the horizon (≥ 16 days).</strong> The last
+      day we predict (Aug 31) is 16 days past our last real data (Aug 15). We forecast all 16 days
+      at once (<em>direct forecasting</em>) with a base lag of 16. See
+      <a href="{{ '/en/stage-2/#laghorizon' | relative_url }}">the lag-horizon deep dive</a>.</li>
+      <li style="margin:.5em 0"><strong>Time-respecting validation.</strong> One 16-day holdout
+      mirroring the real horizon; train strictly on earlier data; random K-fold forbidden.</li>
+      <li style="margin:.5em 0"><strong>Consistent metric handling.</strong> RMSLE computed on
+      <code>log1p</code>, predictions clipped ≥ 0, applied identically to every model so scores are
+      truly comparable.</li>
+    </ol>
+  </div>
+  <div class="callout key"><span class="tag">Meta-lesson</span>
+    <p style="margin:.4em 0 0">When a rule matters, encode it as an assertion. A guard that
+    <em>raises</em> the moment you break a rule is worth more than a comment reminding you not to.</p></div>
+</section>
+
+<footer>
+  Next: <a href="{{ '/en/stage-0/' | relative_url }}">Stage 0 — EDA</a>. The numbers in Foundations
+  are reproducible — see each topic's matching markdown under <code>analyze/concepts/</code>.
+</footer>

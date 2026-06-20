@@ -1,0 +1,31 @@
+# Shared journey nav. URLs are language-neutral *segments*;
+# the layout prepends `/en/` or `/vi/` based on page.lang.
+# Empty `url` means the language root (overview).
+- key: overview
+  url: ""
+  en: Overview
+  vi: Tổng quan
+- key: foundations
+  url: foundations/
+  en: Foundations
+  vi: Nền tảng
+- key: stage-0
+  url: stage-0/
+  en: Stage 0 — EDA
+  vi: Giai đoạn 0 — EDA
+- key: stage-1
+  url: stage-1/
+  en: Stage 1 — Baseline
+  vi: Giai đoạn 1 — Baseline
+- key: stage-2
+  url: stage-2/
+  en: Stage 2 — Deterministic
+  vi: Giai đoạn 2 — Deterministic
+- key: stage-3
+  url: stage-3/
+  en: Stage 3 — Features
+  vi: Giai đoạn 3 — Features
+- key: stage-4
+  url: stage-4/
+  en: Stage 4 — Hybrid
+  vi: Giai đoạn 4 — Hybrid

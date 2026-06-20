@@ -8,7 +8,73 @@
 </head>
 <body>
 <div class="toc-progress"><i id="progbar"></i></div>
-{{ content }}
+<div class="wrap">
+
+  <nav class="side">
+    {%- comment -%} Language-aware labels {%- endcomment -%}
+    {%- if page.lang == 'vi' -%}
+      {%- assign lang_prefix = '/vi/' -%}
+      {%- assign other_prefix = '/en/' -%}
+      {%- assign brand = 'Dự báo Doanh số Cửa hàng' -%}
+      {%- assign tagline = 'Hướng dẫn tương tác cho người học' -%}
+      {%- assign journey_label = 'Hành trình' -%}
+      {%- assign ref_label = 'Tham khảo' -%}
+      {%- assign glossary_label = 'Từ điển thuật ngữ' -%}
+    {%- else -%}
+      {%- assign lang_prefix = '/en/' -%}
+      {%- assign other_prefix = '/vi/' -%}
+      {%- assign brand = 'Store Sales Forecasting' -%}
+      {%- assign tagline = 'An interactive learner''s guide' -%}
+      {%- assign journey_label = 'Journey' -%}
+    {%- endif -%}
+
+    {%- comment -%} Counterpart URL for the lang-switch (parallel page in the other language) {%- endcomment -%}
+    {%- assign current_segment = page.url | remove_first: lang_prefix -%}
+    {%- assign counterpart_url = other_prefix | append: current_segment -%}
+
+    <h1><a href="{{ lang_prefix | relative_url }}" style="color:inherit;text-decoration:none">{{ brand }}</a></h1>
+    <div class="sub">{{ tagline }}</div>
+    <div class="lang-switch">
+      {%- if page.lang == 'vi' -%}
+        <a href="{{ counterpart_url | relative_url }}">EN</a>
+        <a href="{{ page.url | relative_url }}" class="lang-active" aria-current="page">VI</a>
+      {%- else -%}
+        <a href="{{ page.url | relative_url }}" class="lang-active" aria-current="page">EN</a>
+        <a href="{{ counterpart_url | relative_url }}">VI</a>
+      {%- endif -%}
+    </div>
+
+    <div class="grp">{{ journey_label }}</div>
+    {%- for item in site.data.nav -%}
+      {%- assign item_url = lang_prefix | append: item.url -%}
+      {%- if page.lang == 'vi' -%}
+        {%- assign item_label = item.vi -%}
+      {%- else -%}
+        {%- assign item_label = item.en -%}
+      {%- endif -%}
+      {%- assign is_active = false -%}
+      {%- if page.journey == item.key -%}{%- assign is_active = true -%}{%- endif -%}
+
+      <a href="{{ item_url | relative_url }}" class="navlink{% if is_active %} active{% endif %}">{{ item_label }}</a>
+      {%- if is_active and page.sections -%}
+        <div class="subnav">
+          {%- for s in page.sections -%}
+            <a href="#{{ s.id }}" class="navlink sub">{{ s.label }}</a>
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+
+    {%- if page.lang == 'vi' -%}
+      <div class="grp">{{ ref_label }}</div>
+      <a href="{{ '/vi/glossary/' | relative_url }}" class="navlink{% if page.journey == 'glossary' %} active{% endif %}">{{ glossary_label }}</a>
+    {%- endif -%}
+  </nav>
+
+  <main>
+    {{ content }}
+  </main>
+</div>
 <script src="{{ '/assets/main.js' | relative_url }}"></script>
 </body>
 </html>

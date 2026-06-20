@@ -1,0 +1,204 @@
+---
+layout: default
+title: Stage 2 — Deterministic · Store Sales Forecasting
+lang: en
+permalink: /en/stage-2/
+journey: stage-2
+sections:
+  - { id: fourier,    label: "Trend + Fourier" }
+  - { id: laghorizon, label: "The 16-day lag horizon" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Stage 2 · date-only features</div>
+  <h2>The deterministic backbone</h2>
+  <p class="lead">Stage 2 fits a model whose features depend <em>only on the date</em>: a trend
+  (slow drift, <a href="{{ '/en/stage-0/#trend' | relative_url }}">Stage 0</a> confirmed) plus
+  Fourier seasonal terms (weekly + annual, justified by the periodogram and the month profile).
+  "Deterministic" means computable for <em>any</em> future date — perfect for forecasting,
+  because we always know the date.</p>
+  <p class="muted">Source: <code>analyze/concepts/seasonality-fourier.md</code>,
+  <code>analyze/concepts/lag-horizon.md</code>.</p>
+</header>
+
+<section class="block" id="fourier">
+  <div class="eyebrow">Stage 2 · trend + seasonality</div>
+  <h3>Why sin + cos represent a cycle</h3>
+
+  <details class="dd" open>
+    <summary><span class="lvl">how it works</span> Two columns, any peak position</summary>
+    <div class="body">
+      <p>A cycle is a wave; the natural way to write one is <code>sin</code> and <code>cos</code>.
+      For a weekly pattern (period = 7): <code>sin(2π·day/7)</code> and <code>cos(2π·day/7)</code>
+      each complete one full wave every 7 days. Why <em>both</em>? A single sine has a fixed peak
+      position; combining a sin <strong>and</strong> a cos (with weights the model learns) lets it
+      place the peak <em>anywhere</em>, at <em>any</em> height — so with just 2 numbers per cycle a
+      plain linear regression fits "this series peaks Saturday, that one Sunday."</p>
+      <h4>Sample data — exact sin/cos vs real weekday means (store 1, GROCERY I)</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th><code>d</code></th><th>weekday</th><th class="num">sin(2π·d/7)</th><th class="num">cos(2π·d/7)</th><th class="num">mean sales</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Mon</td><td class="num">0.000</td><td class="num">1.000</td><td class="num">2383</td></tr>
+          <tr><td>1</td><td>Tue</td><td class="num">0.782</td><td class="num">0.623</td><td class="num">2409</td></tr>
+          <tr><td>2</td><td>Wed</td><td class="num">0.975</td><td class="num">−0.223</td><td class="num">2770</td></tr>
+          <tr><td>3</td><td>Thu</td><td class="num">0.434</td><td class="num">−0.901</td><td class="num">2229</td></tr>
+          <tr><td>4</td><td>Fri</td><td class="num">−0.434</td><td class="num">−0.901</td><td class="num">2414</td></tr>
+          <tr><td>5</td><td>Sat</td><td class="num">−0.975</td><td class="num">−0.223</td><td class="num">2323</td></tr>
+          <tr><td>6</td><td>Sun</td><td class="num">−0.782</td><td class="num">0.623</td><td class="num">1031</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>The model learns two weights (<code>w_sin</code>, <code>w_cos</code>) plus an intercept so
+      <code>intercept + w_sin·sin + w_cos·cos</code> traces this shape. Two columns reconstruct the
+      weekly rhythm and extend cleanly into any future date. (A sharp single-day dip like Sunday's
+      needs a couple more Fourier pairs — the higher <em>harmonics</em> — to pin down exactly.
+      That's why the periodogram's 3.5-day spike matters — see
+      <a href="{{ '/en/stage-0/#periodogram' | relative_url }}">Stage 0 · periodogram</a>.)</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">tooling</span> CalendarFourier &amp; DeterministicProcess</summary>
+    <div class="body">
+      <p><strong>CalendarFourier</strong> generates those sin/cos columns from the dates. Instead of
+      365 separate "is it Jan 1 / Jan 2 / …" columns for the yearly cycle, you ask for a few Fourier
+      pairs and get a handful of smooth columns approximating the whole annual wave. Stage 0 told us
+      how many: <strong>~2–3 weekly</strong> and <strong>~3–5 annual</strong> harmonics.</p>
+      <p><strong>DeterministicProcess</strong> assembles the full time-feature table: a constant, a
+      <strong>trend</strong> (1, 2, 3, … counting upward), and the seasonal Fourier terms. We allow
+      mild curvature for the trend because Stage 0 showed growth is decelerating.</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">why gaps wreck it</span> "Out of phase" — in numbers</summary>
+    <div class="body">
+      <p><strong>Phase</strong> = where you are in the cycle. The sin/cos value comes from the row's
+      <em>position</em>, assuming consecutive days. <strong>Correct</strong> (no gap):</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>date</th><th>real weekday</th><th class="num">position d</th><th class="num">sin used</th><th class="num">sales</th></tr></thead>
+        <tbody>
+          <tr><td>Aug 12</td><td>Sat</td><td class="num">5</td><td class="num">−0.975</td><td class="num">1630</td></tr>
+          <tr><td>Aug 13</td><td>Sun</td><td class="num">6</td><td class="num">−0.782</td><td class="num">952</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Now <strong>drop the Sat Aug 12 row</strong> (a closed day). Everything after shifts up one:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>date</th><th>real weekday</th><th class="num">position d (miscounted)</th><th class="num">sin used</th><th class="num">sales</th></tr></thead>
+        <tbody>
+          <tr><td>Aug 13</td><td>Sun</td><td class="num"><strong>5</strong> (thinks it's Sat)</td><td class="num"><strong>−0.975</strong></td><td class="num">952</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Sunday's 952 sales are now paired with <em>Saturday's</em> sin value. Every weekday past the
+      gap is mislabelled by one — silent corruption. This is <strong>exactly why</strong>
+      <a href="{{ '/en/stage-0/#trap-1' | relative_url }}">Trap 1</a>'s reindex must run before any
+      seasonal feature.</p>
+      <div class="callout tip"><span class="tag">Punchline</span>
+        <p style="margin:.4em 0 0">Fill the calendar <em>first</em> (so position = real date again),
+        <em>then</em> build Fourier seasonality.</p></div>
+      <p class="muted"><strong>Where:</strong> seasonal/deterministic features in
+      <code>src/features.py</code>.</p>
+    </div>
+  </details>
+</section>
+
+<section class="block" id="laghorizon">
+  <div class="eyebrow">Stage 2 · the lag floor</div>
+  <h3>The 16-day lag horizon (why lags must be ≥ 16)</h3>
+  <p>The deterministic backbone uses only date features. Once we add <strong>lag</strong>
+  features in <a href="{{ '/en/stage-3/' | relative_url }}">Stage 3</a> ("sales N days ago"),
+  they're built from past sales. But our prediction window is 16 days long and we have
+  <strong>no real sales inside it</strong>. That puts a hard floor on how short a lag we can use.</p>
+  <pre>TRAIN (real sales known)            TEST / horizon (must PREDICT, no real sales)
+... Jul 31 ... Aug 15  │  Aug 16  Aug 17  ...  Aug 30  Aug 31
+            ↑ last real day        └──────── 16 days to predict ────────┘</pre>
+
+  <details class="dd" open>
+    <summary><span class="lvl">the problem</span> Why lag_7 breaks partway through</summary>
+    <div class="body">
+      <p>Check <code>lag_7</code> for each test day — does "7 days before" land in the known zone
+      (≤ Aug 15)?</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Predict this day</th><th>7 days before</th><th>Known?</th></tr></thead>
+        <tbody>
+          <tr><td>Aug 16</td><td>Aug 9</td><td>✅ in train</td></tr>
+          <tr><td>Aug 22</td><td>Aug 15</td><td>✅ last real day</td></tr>
+          <tr><td><strong>Aug 23</strong></td><td><strong>Aug 16</strong></td><td>❌ a test day — no real sales</td></tr>
+          <tr><td>Aug 31</td><td>Aug 24</td><td>❌ test day</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>From Aug 23 onward, "7 days ago" points back <em>into the test period itself</em>.</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">the fix</span> Why lag_16 works for the whole horizon</summary>
+    <div class="body">
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Predict this day</th><th>16 days before</th><th>Known?</th></tr></thead>
+        <tbody>
+          <tr><td>Aug 16</td><td>Jul 31</td><td>✅ in train</td></tr>
+          <tr><td>Aug 31</td><td><strong>Aug 15</strong></td><td>✅ last real day</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Even the farthest day (Aug 31) reaches back exactly to Aug 15.</p>
+      <h4>Sample data — tail of store 1, GROCERY I (real)</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>date</th><th class="num">Jul 30</th><th class="num">Jul 31</th><th>…</th><th class="num">Aug 14</th><th class="num">Aug 15 (last real)</th></tr></thead>
+        <tbody><tr><td>sales</td><td class="num">1086</td><td class="num">2966</td><td>…</td><td class="num">2407</td><td class="num">2508</td></tr></tbody>
+      </table>
+      </div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>predict day</th><th>lag_16 source → value</th><th>lag_17 source → value</th></tr></thead>
+        <tbody>
+          <tr><td>Aug 16</td><td>Jul 31 → <strong>2966</strong></td><td>Jul 30 → <strong>1086</strong></td></tr>
+          <tr><td>Aug 31</td><td>Aug 15 → <strong>2508</strong></td><td>Aug 14 → <strong>2407</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Every value comes from real data.</p>
+    </div>
+  </details>
+
+  <div class="callout key"><span class="tag">The rule</span>
+    <p style="margin:.4em 0 0">The last day you predict is <strong>16 days</strong> past your last
+    real data. A lag that must work for the <em>whole</em> horizon has to reach back at least 16
+    days. In general: <strong>minimum usable lag = horizon length (H)</strong>.</p></div>
+
+  <h4>The design decision: direct forecasting with base lag = 16</h4>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Approach</th><th>How</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Direct (chosen)</strong></td><td>Predict all 16 days at once, using only real lags ≥ 16 (lag_16, lag_17, … ; rolling windows anchored at shift(16))</td><td>One feature matrix, <strong>no error compounding</strong></td></tr>
+      <tr><td>Recursive (not chosen)</td><td>Predict Aug 16, treat it as real, use as lag_1 for Aug 17, …</td><td>Allows short lags, but errors <strong>snowball</strong> across 16 days</td></tr>
+      <tr><td>Direct per step</td><td>A separate model per horizon day (day-1 uses lag_1, day-16 uses lag_16)</td><td>Freshest legal lag per day, but 16 models</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout tip"><span class="tag">Long horizons → lean on seasonality</span>
+    <p style="margin:.4em 0 0">A 1-year horizon would need <code>lag_365</code> as its shortest lag
+    — nearly useless. The longer the horizon, the less lags help and the more you lean on date-only
+    features (trend + Fourier seasonality, holidays), computable for any future date. That's why the
+    modelling is staged: a deterministic backbone first (this Stage), lags added on top as a
+    short-horizon booster (Stage 3) — never a replacement.</p></div>
+  <p class="muted"><strong>Where:</strong> lag/rolling features in <code>src/features.py</code>;
+  enforced by the base-lag ≥ 16 guard in <code>src/validation.py :: assert_no_leak()</code>.</p>
+</section>
+
+<footer>
+  Next: <a href="{{ '/en/stage-3/' | relative_url }}">Stage 3 — Features</a>. Source:
+  <code>analyze/concepts/seasonality-fourier.md</code>, <code>analyze/concepts/lag-horizon.md</code>.
+</footer>

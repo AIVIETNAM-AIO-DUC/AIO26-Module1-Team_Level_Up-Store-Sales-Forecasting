@@ -1,0 +1,79 @@
+---
+layout: default
+title: Stage 4 — Hybrid · Store Sales Forecasting
+lang: en
+permalink: /en/stage-4/
+journey: stage-4
+sections:
+  - { id: hybrid,      label: "The hybrid idea" }
+  - { id: granularity, label: "Granularity decision" }
+  - { id: stitch,      label: "Fallback stitching" }
+  - { id: refit,       label: "Final fit on everything" }
+  - { id: submission,  label: "Submission shape" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Stage 4 · combine, decide, submit</div>
+  <h2>Hybrid model &amp; the actual submission</h2>
+  <p class="lead">The final stage: combine the deterministic backbone (Stage 2) with the feature
+  model (Stage 3), stitch the Stage 1 fallback back in for thin series, refit on the full
+  training data, and write the 28,512-row submission.</p>
+</header>
+
+<section class="block" id="hybrid">
+  <div class="eyebrow">Stage 4 · two specialists</div>
+  <h3>The hybrid idea</h3>
+  <p><a href="{{ '/en/stage-2/' | relative_url }}">Stage 2</a>'s deterministic backbone captures the
+  slow drift and the calendar rhythm cleanly. <a href="{{ '/en/stage-3/' | relative_url }}">Stage
+  3</a>'s feature model captures the short-horizon corrections — recent level, promotions, the
+  earthquake window. A <strong>hybrid</strong> fits Stage 2 first, takes its residuals (what's
+  left unexplained), and lets Stage 3 predict those. Two specialists, each on the problem it's
+  good at.</p>
+</section>
+
+<section class="block" id="granularity">
+  <div class="eyebrow">Stage 4 · choose the level</div>
+  <h3>Granularity decision</h3>
+  <p>One model for all 1,782 series? One per family? One per store-family? Stage 4 picks the
+  level using the holdout RMSLE — finer granularity captures local patterns but starves on data;
+  coarser pools more data but smears patterns. The
+  <a href="{{ '/en/foundations/#rules' | relative_url }}">same five rules</a> apply to every choice.</p>
+</section>
+
+<section class="block" id="stitch">
+  <div class="eyebrow">Stage 4 · Stage 1 returns</div>
+  <h3>Fallback stitching</h3>
+  <p>Thin series were peeled off before training and predicted by the
+  <a href="{{ '/en/stage-1/' | relative_url }}">Stage 1 fallback</a> (seasonal-naive / near-zero).
+  Stitch their predictions back in so the final output covers <strong>all 28,512 rows</strong>.</p>
+</section>
+
+<section class="block" id="refit">
+  <div class="eyebrow">Stage 4 · the freshest data</div>
+  <h3>Final fit on everything, then predict</h3>
+  <p>Once the best approach is chosen on the holdout, <strong>re-fit the chosen model on the full
+  training data</strong> (including the 16 holdout days — the freshest trend and seasonality
+  live there) before predicting the real <code>test.csv</code>.</p>
+</section>
+
+<section class="block" id="submission">
+  <div class="eyebrow">Stage 4 · output</div>
+  <h3>Submission shape</h3>
+  <pre>id,sales
+3000888,123.4
+3000889,0.0
+...
+(exactly 28,512 rows · matches sample_submission.csv)</pre>
+  <p class="muted">Two final sanity checks: no NaN; no negatives (clip ≥ 0, the same clip we used
+  for RMSLE scoring). <strong>Where:</strong> <code>src/submission.py</code>.</p>
+
+  <div class="callout key"><span class="tag">The whole pipeline, on one line</span>
+    <p style="margin:.4em 0 0">load → reindex (gap-free) → split (holdout) → Stage 1 (baseline
+    floor) → Stage 2 (deterministic) → Stage 3 (features on residuals) → Stage 4 (hybrid +
+    fallback stitch) → refit on all data → write submission.</p></div>
+</section>
+
+<footer>
+  End of the journey. Go back to the <a href="{{ '/' | relative_url }}">Overview</a> or
+  re-read <a href="{{ '/en/foundations/' | relative_url }}">Foundations</a>.
+</footer>
