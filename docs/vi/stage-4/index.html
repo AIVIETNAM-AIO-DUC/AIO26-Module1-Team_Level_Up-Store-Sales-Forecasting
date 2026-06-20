@@ -1,0 +1,81 @@
+---
+layout: default
+title: Giai đoạn 4 — Hybrid · Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/stage-4/
+journey: stage-4
+sections:
+  - { id: hybrid,      label: "Ý tưởng hybrid" }
+  - { id: granularity, label: "Quyết định granularity" }
+  - { id: stitch,      label: "Ghép fallback" }
+  - { id: refit,       label: "Fit cuối trên toàn bộ" }
+  - { id: submission,  label: "Định dạng submission" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Giai đoạn 4 · kết hợp, chọn granularity, nộp</div>
+  <h2>Hybrid<a href="{{ '/vi/glossary/' | relative_url }}#g-hybrid" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> model &amp; submission thật</h2>
+  <p class="lead">Giai đoạn cuối: kết hợp backbone deterministic (Giai đoạn 2) với feature
+  model (Giai đoạn 3), ghép fallback của Giai đoạn 1 cho các series thưa, refit trên toàn bộ
+  dữ liệu huấn luyện, rồi ghi submission 28,512 dòng.</p>
+</header>
+
+<section class="block" id="hybrid">
+  <div class="eyebrow">Giai đoạn 4 · hai chuyên gia</div>
+  <h3>Ý tưởng hybrid</h3>
+  <p>Backbone deterministic của <a href="{{ '/vi/stage-2/' | relative_url }}">Giai đoạn 2</a>
+  bắt sự dịch chuyển chậm và nhịp lịch một cách sạch sẽ. Feature model của
+  <a href="{{ '/vi/stage-3/' | relative_url }}">Giai đoạn 3</a> bắt các điều chỉnh ngắn hạn —
+  mức gần đây, khuyến mãi, cửa sổ động đất. Một <strong>hybrid</strong> fit Giai đoạn 2 trước,
+  lấy residual<a href="{{ '/vi/glossary/' | relative_url }}#g-residual" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> của nó (cái gì còn lại chưa giải thích được), rồi để Giai đoạn 3 dự đoán
+  những residual đó. Hai chuyên gia, mỗi người làm việc mình giỏi.</p>
+</section>
+
+<section class="block" id="granularity">
+  <div class="eyebrow">Giai đoạn 4 · chọn mức</div>
+  <h3>Quyết định granularity<a href="{{ '/vi/glossary/' | relative_url }}#g-granularity" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a></h3>
+  <p>Một mô hình cho cả 1,782 series? Một mô hình cho mỗi family? Một cho mỗi store-family?
+  Giai đoạn 4 chọn mức bằng RMSLE trên holdout — granularity càng mịn càng bắt được pattern
+  cục bộ nhưng đói dữ liệu; càng thô càng gom được nhiều dữ liệu nhưng làm nhòe pattern.
+  <a href="{{ '/vi/foundations/#rules' | relative_url }}">Năm nguyên tắc</a> áp dụng cho mọi
+  lựa chọn.</p>
+</section>
+
+<section class="block" id="stitch">
+  <div class="eyebrow">Giai đoạn 4 · Giai đoạn 1 quay lại</div>
+  <h3>Ghép fallback</h3>
+  <p>Các series thưa đã được tách ra trước khi training và được dự đoán bởi
+  <a href="{{ '/vi/stage-1/' | relative_url }}">fallback của Giai đoạn 1</a> (seasonal-naive /
+  near-zero). Ghép các dự đoán đó vào lại để output cuối cùng phủ
+  <strong>đủ 28,512 dòng</strong>.</p>
+</section>
+
+<section class="block" id="refit">
+  <div class="eyebrow">Giai đoạn 4 · dữ liệu tươi mới nhất</div>
+  <h3>Fit cuối trên toàn bộ, rồi dự đoán</h3>
+  <p>Khi đã chọn được hướng tốt nhất trên holdout, <strong>fit lại mô hình đã chọn trên toàn
+  bộ dữ liệu huấn luyện</strong> (bao gồm 16 ngày holdout — trend và seasonality tươi mới nhất
+  nằm ở đó) trước khi dự đoán <code>test.csv</code> thật.</p>
+</section>
+
+<section class="block" id="submission">
+  <div class="eyebrow">Giai đoạn 4 · output</div>
+  <h3>Định dạng submission</h3>
+  <pre>id,sales
+3000888,123.4
+3000889,0.0
+...
+(đúng 28,512 dòng · khớp với sample_submission.csv)</pre>
+  <p class="muted">Hai bước kiểm tra cuối: không có NaN; không có số âm (clip ≥ 0, đúng clip mà
+  ta dùng khi chấm RMSLE). <strong>Ở đâu:</strong> <code>src/submission.py</code>.</p>
+
+  <div class="callout key"><span class="tag">Toàn bộ pipeline, trên một dòng</span>
+    <p style="margin:.4em 0 0">load → reindex (gap-free) → split (holdout) → Giai đoạn 1
+    (sàn baseline) → Giai đoạn 2 (deterministic) → Giai đoạn 3 (features trên residual) →
+    Giai đoạn 4 (hybrid + ghép fallback) → refit trên toàn bộ → ghi submission.</p></div>
+</section>
+
+<footer>
+  Kết thúc hành trình. Quay lại <a href="{{ '/vi/' | relative_url }}">Tổng quan</a> hoặc
+  đọc lại <a href="{{ '/vi/foundations/' | relative_url }}">Nền tảng</a>.
+</footer>

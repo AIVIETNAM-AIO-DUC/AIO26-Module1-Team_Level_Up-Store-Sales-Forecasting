@@ -1,0 +1,397 @@
+---
+layout: default
+title: Giai đoạn 0 — EDA · Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/stage-0/
+journey: stage-0
+sections:
+  - { id: overview,    label: "Tổng quan & toàn vẹn" }
+  - { id: trend,       label: "Trend theo thời gian" }
+  - { id: seasonality, label: "Seasonality + periodogram" }
+  - { id: calendar,    label: "Lịch & ngày lễ" }
+  - { id: promo-oil,   label: "Khuyến mãi & oil" }
+  - { id: anomalies,   label: "Bất thường" }
+  - { id: traps,       label: "6 cạm bẫy thầm lặng" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Giai đoạn 0 · nhìn trước khi mô hình hóa</div>
+  <h2>EDA — bằng chứng đằng sau mọi quyết định sau này</h2>
+  <p class="lead">Giai đoạn 0 là bước thực sự đầu tiên của người học: <em>nhìn</em>, đếm, và
+  kiểm tra xem dữ liệu có đúng như ta nghĩ trước khi xây bất cứ thứ gì. Mọi lựa chọn mô hình
+  ở Giai đoạn 1–4 đều truy ngược về một phát hiện trên trang này.</p>
+  <p class="muted">Nguồn: <code>analyze/eda/*</code> và <code>analyze/data-traps/*</code>. Mỗi
+  con số đều có <code>## Verify</code> trên trang nguồn của nó.</p>
+</header>
+
+<section class="block" id="overview">
+  <div class="eyebrow">Giai đoạn 0 — EDA · tổng quan</div>
+  <h3>Toàn vẹn dữ liệu &amp; reindex<a href="{{ '/vi/glossary/' | relative_url }}#g-reindex" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> gap-free</h3>
+  <p>7 file CSV load sạch sẽ; các con số tiêu đề xác nhận
+  <strong>54 cửa hàng × 33 nhóm = 1,782 series</strong> trên 1,688 ngày. Bản vá đầu tiên — thay
+  đổi cấu trúc duy nhất của Giai đoạn 0 — là dựng lại mọi series trên một lịch ngày đầy đủ
+  (xem <a href="#trap-1">Cạm bẫy 1</a>). Đọc các con số:</p>
+  <pre>dòng gốc        : 3,000,888    <b>← Kaggle cung cấp</b>
+sau reindex     : 3,008,016    <b>← sau khi điền các khoảng trống</b>
+mong đợi        : 1,782 × 1,688 = 3,008,016
+dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giáng sinh)</b></pre>
+  <p class="muted">Tổng = tích, và 7,128 / 1,782 = 4 — bằng chứng sạch cho thấy reindex đã làm
+  đúng. <strong>Ở đâu:</strong> <code>src/data.py :: reindex_series_gapfree()</code>; được bảo
+  vệ bởi <code>assert_gapfree()</code>.</p>
+</section>
+
+<section class="block" id="trend">
+  <div class="eyebrow">Giai đoạn 0 — EDA · trend</div>
+  <h3>Sự dịch chuyển chậm qua ~4,6 năm</h3>
+  <p>Điều đầu tiên ta nhận thấy: doanh số không phải stationary<a href="{{ '/vi/glossary/' | relative_url }}#g-stationary" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> — chúng đang tăng.</p>
+  <ul>
+    <li><strong>Trung bình tổng theo ngày tăng gấp đôi</strong>: ~<strong>386k</strong> năm 2013
+    → ~<strong>856k</strong> năm 2017.</li>
+    <li><strong>Tốc độ tăng chậm lại</strong>: nhảy lớn ở những năm đầu, nhỏ dần về sau — một
+    đường cong, không phải đường thẳng.</li>
+    <li><strong>Phân bố đuôi nặng theo family</strong>: top ~6 family chiếm ~<strong>83%</strong>
+    tổng doanh số (GROCERY I áp đảo); nhiều family rất nhỏ.</li>
+    <li><strong>Cùng hình dạng, khác kích cỡ</strong>: hầu hết family cùng có xu hướng tăng dần
+    + dao động seasonality, nhưng trên các thang đo rất khác nhau.</li>
+  </ul>
+  <div class="callout key"><span class="tag">Hệ quả cho mô hình hóa</span>
+    <p style="margin:.4em 0 0">Một term trend là thiết yếu, và ta nên cho phép <em>cong nhẹ</em>
+    (đường thẳng sẽ undershoot một đầu và overshoot đầu kia). Mô hình hóa theo từng series/family
+    trong không gian <code>log1p</code> để family nhỏ không bị family lớn nuốt chửng. Cơ chế
+    trong <a href="{{ '/vi/stage-2/' | relative_url }}">Giai đoạn 2</a>.</p></div>
+</section>
+
+<section class="block" id="seasonality">
+  <div class="eyebrow">Giai đoạn 0 — EDA · seasonality</div>
+  <h3>Hai nhịp lặp lại: theo tuần &amp; theo năm</h3>
+
+  <h4>Theo tuần</h4>
+  <p>Cuối tuần cao hơn trung bình ngày thường ≈ <strong>39%</strong> — tỉ lệ
+  cuối-tuần/ngày-thường ≈ <strong>1,39</strong>. <strong>Chủ Nhật</strong> là đỉnh (≈ 821,794),
+  <strong>Thứ Năm</strong> là đáy (≈ 503,173). Đó là trung bình toàn chuỗi siêu thị; <em>các
+  series riêng lẻ khác nhau</em> — GROCERY I của store 1 thực ra lại <em>lõm</em> vào Chủ Nhật.</p>
+
+  <div class="card">
+    <h4 style="margin-top:0">Hình dạng theo tuần — store 1, GROCERY I (doanh số trung bình theo thứ, thật)</h4>
+    <div class="chart" id="weekChart"></div>
+    <div class="xaxis" id="weekAxis"></div>
+    <p class="muted" style="margin-top:12px">Khá phẳng T2–T7 (~2,3–2,8k) với cú lõm sâu Chủ Nhật
+    xuống ~1031. Một series <em>đỉnh điểm cuối tuần</em> sẽ có hình dạng khác — và mô hình
+    thích ứng theo từng series.</p>
+  </div>
+
+  <h4>Theo năm</h4>
+  <p>Đỉnh rõ rệt vào <strong>tháng 12</strong> (≈ 782,483 mean per month) và đáy vào
+  <strong>tháng 2</strong> (≈ 571,895), kèm một cú nhô vào tháng 7. Ta dùng <em>mean</em> theo
+  tháng (không phải sum) vì train kết thúc giữa tháng 8/2017, nên Sep–Dec có ít hơn một năm dữ
+  liệu. Dù thiếu năm có doanh số cao nhất, tháng 12 vẫn dẫn đầu profile — sức mạnh của đợt tăng
+  vọt lễ là vậy đấy.</p>
+
+  <h4 id="periodogram">Khám phá: periodogram<a href="{{ '/vi/glossary/' | relative_url }}#g-periodogram" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (một "lăng kính" cho time series)</h4>
+  <p>Ta không cần <em>giả định</em> dữ liệu có chu kỳ tuần — ta có thể để dữ liệu
+  <strong>tự chỉ ra</strong>. Một <strong>periodogram</strong> tách đường tổng theo ngày thành
+  các sóng sin/cos thuần với mọi chu kỳ có thể và đo mức độ biến thiên nằm ở mỗi cycle length.
+  Một spike<a href="{{ '/vi/glossary/' | relative_url }}#g-spike" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> cao tại 7 ngày nghĩa là "có một nhịp lặp 7 ngày mạnh trong dữ liệu này." Công cụ
+  thực hiện việc tách đó là <strong>FFT</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-fft" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> — hãy nghĩ về nó như một "cỗ máy tìm chu kỳ."</p>
+
+  <p>FFT nói bằng <em>frequency</em> (cycles/day); ta nghĩ bằng <em>period</em> (days/cycle).
+  <code>period = 1 / frequency</code>. Chu kỳ dài, chậm → frequency thấp; chu kỳ ngắn, nhanh →
+  frequency cao.</p>
+
+  <p>Với mỗi cycle ứng viên, FFT fit một sin và một cos vào dữ liệu rồi đọc ra hai trọng số
+  <em>a</em>, <em>b</em>. <strong>Power</strong> tại cycle đó là <code>a² + b²</code> —
+  "năng lượng nằm ở period này có bao nhiêu," bất kể đỉnh của nó rơi ở đâu. Hai lựa chọn trình
+  bày giữ bức tranh trung thực:</p>
+  <ul>
+    <li><strong>Trừ trung bình</strong> trước để mức trung bình không áp đảo tại frequency 0.</li>
+    <li><strong>Chỉ xem 2–60 ngày trên trục y log</strong> để xu hướng tăng nhiều năm chậm chạp
+    không nuốt mất spike tuần, và các spike nhỏ hơn vẫn nhìn thấy được.</li>
+  </ul>
+
+  <div class="callout key"><span class="tag">Của ta cho thấy gì</span>
+    <p style="margin:.4em 0 0">Spike cao nhất tại <strong>7 ngày</strong> (weekly) → một spike
+    thứ hai rõ tại <strong>3,5 ngày</strong> (harmonic bậc 2, có mặt vì cú nhảy cuối tuần là
+    sắc, không phải sóng sin trơn) → một bump nhỏ gần <strong>15 ngày</strong>. Chu kỳ năm
+    nằm ngoài dải 2–60 và ~4,6 năm là quá ít chu kỳ để phân giải sạch — vì thế tín hiệu năm
+    được đọc từ profile tháng ở trên, không phải từ periodogram.</p></div>
+
+  <div class="callout tip"><span class="tag">Hệ quả cho mô hình hóa</span>
+    <p style="margin:.4em 0 0"><strong>~2–3 harmonic tuần</strong> (cú nhảy cuối tuần sắc cần
+    harmonic bậc 2 ở 3,5 ngày) và <strong>~3–5 harmonic năm</strong> cho hình dạng năm trơn.
+    Để spike tháng 12 sắc cho <em>holiday features</em> rõ ràng, không phải thêm harmonic. Cơ
+    chế trong <a href="{{ '/vi/stage-2/#fourier' | relative_url }}">Giai đoạn 2 · Fourier</a>.</p></div>
+  <p class="muted"><strong>Tham khảo:</strong> <code>analyze/concepts/periodogram.md</code>,
+  <code>analyze/eda/03-seasonality.md</code>.</p>
+</section>
+
+<section class="block" id="calendar">
+  <div class="eyebrow">Giai đoạn 0 — EDA · hiệu ứng lịch</div>
+  <h3>Ngày lễ và payday — không như bề ngoài</h3>
+
+  <h4>Bảng ngày lễ KHÔNG phải cờ yes/no</h4>
+  <p>350 dòng. <strong>12</strong> dòng có <code>transferred = True</code> (ngày lễ đó
+  <em>không</em> diễn ra vào ngày được liệt kê — một dòng <code>Transfer</code> riêng mang ngày
+  thực). Có cả ngày <code>Bridge</code> và <strong>5</strong> dòng <code>Work Day</code> (một
+  ngày nghỉ thường lệ được chuyển thành ngày làm việc). <code>locale</code> là National /
+  Regional / Local — nên một ngày lễ không áp dụng cho mọi cửa hàng.</p>
+
+  <h4>Lift<a href="{{ '/vi/glossary/' | relative_url }}#g-lift" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> của ngày lễ National</h4>
+  <p>82 ngày nghỉ National trong khoảng train. Các ngày lễ National mở cửa trung bình ≈
+  <strong>1,20×</strong> ngày thường (≈ 756k vs ≈ 632k); 4 Giáng sinh = <strong>0</strong>
+  (đóng cửa). <em>Lưu ý:</em> chưa khử ảnh hưởng theo thứ trong tuần và nhỏ hơn dao động tuần
+  (≈ 1,39), nên coi 1,20 là gợi ý, không phải con số chính xác.</p>
+
+  <h4>Payday là một con sóng, không phải spike một ngày</h4>
+  <p>Cờ ngây thơ "là ngày 15 hoặc cuối tháng?" chỉ cho ≈ <strong>1,01×</strong> — không đáng
+  kể. Nhưng profile theo ngày-trong-tháng tiết lộ một chu kỳ thật: <strong>cú nhô đầu
+  tháng</strong> (ngày 2 ≈ 743k vs đáy giữa tháng ≈ 599k → ≈ <strong>1,24×</strong>) và một
+  bump nhỏ hơn sau ngày 15.</p>
+
+  <div class="callout tip"><span class="tag">Hệ quả cho mô hình hóa</span>
+    <p style="margin:.4em 0 0">Dựng một <strong>lịch nghỉ lễ hiệu lực</strong> (hòa hợp
+    transferred / bridge / work-day; phân theo locale: National → tất cả cửa hàng, Regional →
+    bang đó, Local → thành phố đó). Encode <strong>days-since-payday</strong> hoặc một cửa sổ
+    ngắn sau payday — không phải cờ một ngày đơn lẻ. Triển khai ở
+    <a href="{{ '/vi/stage-3/' | relative_url }}">Giai đoạn 3</a>.</p></div>
+  <p class="muted"><strong>Tham khảo:</strong> <code>analyze/eda/04-calendar-holidays.md</code>,
+  <code>analyze/data-traps/03-holidays.md</code>.</p>
+</section>
+
+<section class="block" id="promo-oil">
+  <div class="eyebrow">Giai đoạn 0 — EDA · tín hiệu ngoại sinh</div>
+  <h3>Khuyến mãi và giá oil</h3>
+
+  <h4><code>onpromotion</code> — không leakage, cùng ngày</h4>
+  <p>Có mặt trong cả train và test với <strong>0</strong> null ở test (khuyến mãi được lên kế
+  hoạch trước), nên ta đưa thẳng vào mô hình không cần lag. Bắt đầu từ
+  <strong>2014-04-01</strong> (toàn 0 trước đó); <strong>20,4%</strong> dòng mở cửa có khuyến
+  mãi; doanh số trung bình tăng mạnh qua các nhóm promo.</p>
+
+  <div class="callout key"><span class="tag">Vì sao ta "biết" số khuyến mãi tương lai</span>
+    <p style="margin:.4em 0 0">Một chỗ hay nhầm: trong <code>train.csv</code>,
+    <code>onpromotion</code> dừng ở 2017-08-15 — vậy giá trị cho ngày trong horizon lấy từ đâu?
+    Từ <strong>file còn lại</strong>. <code>onpromotion</code> nằm ở <em>hai</em> file, và
+    <code>test.csv</code> đã chứa sẵn nó cho cả 16 ngày horizon. Cột duy nhất thiếu trong
+    <code>test.csv</code> là <code>sales</code> (thứ ta dự đoán).</p>
+    <div class="scroll" style="margin-top:.6em">
+    <table>
+      <thead><tr><th></th><th><code>train.csv</code></th><th><code>test.csv</code> (horizon)</th></tr></thead>
+      <tbody>
+        <tr><td>Ngày</td><td>2013-01-01 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
+        <tr><td><code>onpromotion</code></td><td>✅ có</td><td>✅ <strong>có</strong> (0 null)</td></tr>
+        <tr><td><code>sales</code></td><td>✅ có</td><td>❌ không → đây là thứ ta dự đoán</td></tr>
+        <tr><td><code>transactions</code></td><td>✅ (file riêng)</td><td>❌ <strong>không có file</strong> → chỉ dùng lag (Cạm bẫy 6)</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin:.6em 0 0">Nên "cùng ngày, không lag" không phải ta lén nhìn tương lai —
+    Kaggle <em>đưa sẵn</em> lịch khuyến mãi tương lai cho ta, vì khuyến mãi là quyết định lên kế
+    hoạch trước. Ngược lại <code>transactions</code>: nó là <em>kết quả</em> của ngày hôm đó,
+    không có file test, nên chỉ có thể dùng dạng lag.</p></div>
+  <div class="callout leak"><span class="tag">Đừng đo độ lift từ EDA</span>
+    <p style="margin:.4em 0 0">Lift thô của khuyến mãi bị confound<a href="{{ '/vi/glossary/' | relative_url }}#g-confound" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> kép — bởi <em>family</em>
+    (family lớn vừa khuyến mãi <em>vừa</em> bán nhiều) và bởi <em>time/trend</em> (dòng promo
+    đều thuộc 2014-04+, giai đoạn trend cao hơn). Để mô hình tự đo magnitude; nhớ rằng nó
+    <strong>không có tín hiệu trước 2014–đầu 2014</strong>.</p></div>
+
+  <h4>Oil — gap-fill trước, đánh giá sau</h4>
+  <p>1,218 dòng ngày giao dịch; <strong>43</strong> giá trống (gồm cả ngày đầu tiên);
+  <strong>486</strong> ngày lịch bị thiếu (cuối tuần/lễ) = <strong>529</strong> lỗ hổng trên
+  lịch ngày → <strong>0</strong> sau forward-fill<a href="{{ '/vi/glossary/' | relative_url }}#g-forwardfill" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (+ một back-fill cho ô trống dẫn 2013-01-01).
+  Forward-fill chỉ nhìn về quá khứ (không leakage); interpolation<a href="{{ '/vi/glossary/' | relative_url }}#g-interpolation" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> bị loại vì nó lấy trung bình
+  với giá trị <em>sau</em> khoảng trống — đó là tương lai.</p>
+
+  <h4>Oil là ứng viên, không phải driver đã chứng minh</h4>
+  <p>Giá oil sụp đổ (2014 avg ≈ 93 → 2016 avg ≈ 43) trong khi sales tăng, nên correlation<a href="{{ '/vi/glossary/' | relative_url }}#g-correlation" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> thô
+  trông kịch tính ở <strong>−0,62</strong>. Sau khi detrend<a href="{{ '/vi/glossary/' | relative_url }}#g-detrend" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (% thay đổi theo tháng) nó
+  <strong>tụt xuống ≈ 0,05 ≈ 0</strong>. "Mối quan hệ" mạnh kia là một artifact của trend —
+  cùng một cái bẫy như việc gán một mẫu thường ngày cho một sự kiện đặc biệt. Oil vẫn có thể
+  có ý nghĩa theo từng region/family hoặc dạng lag — holdout sẽ quyết định.</p>
+
+  <p class="muted"><strong>Tham khảo:</strong> <code>analyze/eda/05-promotions-oil.md</code>,
+  <code>analyze/data-traps/02-oil-gaps.md</code>,
+  <code>analyze/data-traps/06-transactions-past-only.md</code>.</p>
+</section>
+
+<section class="block" id="anomalies">
+  <div class="eyebrow">Giai đoạn 0 — EDA · sự kiện một lần</div>
+  <h3>Động đất 2016 — giải phẫu một bất thường</h3>
+  <p>Một trận động đất 7,8 độ xảy ra vào <strong>2016-04-16</strong>. So với baseline<a href="{{ '/vi/glossary/' | relative_url }}#g-baseline" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> 8 tuần
+  trước động đất (≈ 764,910):</p>
+  <ul>
+    <li><strong>Tuần +0</strong> (tuần va chạm) nhảy lên ≈ <strong>1,41×</strong> do mua sắm
+    cứu trợ; đỉnh <strong>2016-04-18</strong> đạt 1,345,921 ≈ <strong>1,76×</strong>.</li>
+    <li><strong>Tuần +1</strong> đã quay về ≈ <strong>1,00×</strong>. Spike cấp tính chỉ
+    ≈ <strong>1 tuần</strong>, không phải nhiều tuần.</li>
+    <li>"Echo tuần +2" tưởng chừng là động đất thì <strong>không phải</strong> — đó là cú nhô
+    đầu tháng payday + Quốc tế Lao động 1/5. Bằng chứng: cùng cửa sổ 30/4 – 6/5 thực ra
+    <em>cao hơn</em> vào năm 2017 (≈ 959k, không có động đất) so với 2016 (≈ 901k).</li>
+  </ul>
+  <div class="callout tip"><span class="tag">Bài học</span>
+    <p style="margin:.4em 0 0">Đừng gán một mẫu thường ngày cho một sự kiện đặc biệt — cùng cái
+    bẫy correlation giả như oil → sales. Và đừng <em>xóa</em> các dòng bất thường; làm vậy mở
+    lại lỗ hổng trong lịch gap-free. <strong>Gắn nhãn</strong> chúng bằng một cờ cửa sổ động
+    đất (một envelope rộng tay ≈ 2016-04-16 → giữa tháng 5) để mô hình hấp thụ cú sốc như một
+    sự kiện đã biết. File holidays thậm chí đánh dấu hậu quả bằng một dòng <code>Event</code>
+    <code>Terremoto Manabi+15</code>.</p></div>
+  <h4>Closures, nhân tiện nói luôn</h4>
+  <p>Chỉ 4 ngày 25/12 là <em>khoảng trống</em> thật (doanh số 0, đã khôi phục trong reindex).
+  4 ngày 1/1 là các ngày <em>được ghi nhận</em> gần-0 (cửa hàng hầu như không mở) và đã được
+  bao phủ bởi calendar features — không cần cờ thêm.</p>
+  <p class="muted"><strong>Tham khảo:</strong> <code>analyze/eda/06-anomalies.md</code>,
+  <code>analyze/data-traps/04-earthquake-anomaly.md</code>.</p>
+</section>
+
+<section class="block" id="traps">
+  <div class="eyebrow">Giai đoạn 0 — EDA · cái gì có thể đi sai</div>
+  <h3>Sáu cạm bẫy thầm lặng</h3>
+  <p>Sắp theo thứ tự dễ → khó nhận. Mỗi cạm bẫy có cùng cấu trúc:
+  <em>bạn thấy gì → tại sao nó âm thầm gây hại → cách xử lý → nằm ở đâu trong code.</em>
+  Một chủ đề xuyên suốt nhiều cạm bẫy là <strong>leakage</strong>: để mô hình dùng thông tin mà
+  nó không có tại thời điểm dự đoán.</p>
+
+  <details class="trap" id="trap-1" open>
+    <summary><span class="arrow">▶</span><span class="t-num">1</span>
+      <span class="grow">Thiếu ngày trong lịch (cạm bẫy đếm dòng)</span>
+      <span class="status s-done">✅ Đã xử lý</span></summary>
+    <div class="body">
+      <p><strong>Bạn thấy gì:</strong> cửa hàng đóng cửa một số ngày — đáng chú ý là mỗi ngày
+      25/12 — nên những ngày đó <em>không có dòng nào</em>. Chúng bị vắng mặt, chứ không phải
+      được ghi là số 0. Series <code>store=1, AUTOMOTIVE</code> có 1,684 dòng trên khoảng 1,688
+      ngày → thiếu 4 ngày, tất cả đều là Giáng sinh.</p>
+      <p><strong>Tại sao nó âm thầm gây hại:</strong> feature time-series đếm theo <em>dòng</em>.
+      Sau một khoảng trống, "lùi 7 dòng" không còn là "lùi 7 ngày" nữa — lag "cùng thứ trong
+      tuần tuần trước" trỏ vào sai ngày, và các thành phần sin/cos theo mùa bị lệch pha. Không
+      có lỗi nào báo ra; mô hình chỉ đơn giản là tệ đi.</p>
+      <p><strong>Cách xử lý:</strong> dựng lại mỗi series trên một lịch ngày đầy đủ và điền các
+      ngày thiếu bằng <code>sales = 0</code> (cửa hàng không bán gì — điều đó là <em>đúng sự
+      thật</em>, và giữ cho khoảng cách giữa các dòng đều đặn). Đánh dấu mỗi dòng được chèn
+      bằng <code>was_closed = True</code> để không mất thông tin.</p>
+      <pre>  3,000,888  (khoảng trống nơi cửa hàng đóng)
++     7,128  (4 Giáng sinh × 1,782 series, khôi phục thành sales = 0)
+─────────
+  3,008,016  (lưới đầy đủ, không có khoảng trống: 1,782 series × 1,688 ngày)</pre>
+      <p class="muted"><strong>Ở đâu:</strong> <code>src/data.py :: reindex_series_gapfree()</code>,
+      được kiểm tra bởi <code>src/validation.py :: assert_gapfree()</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-2">
+    <summary><span class="arrow">▶</span><span class="t-num">2</span>
+      <span class="grow">Khoảng trống và ô trống trong giá oil (lần đầu nếm mùi leakage)</span>
+      <span class="status s-plan">⏳ Dự kiến</span></summary>
+    <div class="body">
+      <p><strong>Bạn thấy gì:</strong> Kinh tế Ecuador phụ thuộc vào dầu, nên giá oil là một
+      yếu tố hợp lý. Nhưng <code>oil.csv</code> có hai chỗ hổng: oil chỉ giao dịch vào ngày làm
+      việc (cuối tuần/ngày lễ không có dòng), và <strong>43 dòng</strong> tồn tại với giá trống.</p>
+      <p><strong>Cách xử lý:</strong> dựng một lịch ngày liên tục, left-join với oil, rồi
+      <strong>forward-fill</strong> — mang giá đã biết gần nhất tới ngày hiện tại (một lần
+      back-fill cho ngày đầu tiên nếu nó trống).</p>
+      <div class="callout leak">
+        <span class="tag">Cảnh báo leakage</span>
+        <p style="margin:.4em 0 0">Tại sao không dùng interpolation? Vì nó lấy trung bình giá
+        <em>trước</em> và <em>sau</em> khoảng trống — và "sau" chính là <strong>tương lai</strong>.
+        Dùng nó nghĩa là mô hình nhìn lén thông tin mà nó không có. Forward-fill chỉ nhìn về
+        quá khứ, nên an toàn.</p>
+      </div>
+      <p class="muted"><strong>Ở đâu:</strong> các feature về oil trong <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-3">
+    <summary><span class="arrow">▶</span><span class="t-num">3</span>
+      <span class="grow">Ngày lễ không phải là yes/no đơn giản (mô hình hóa theo nghiệp vụ)</span>
+      <span class="status s-plan">⏳ Dự kiến</span></summary>
+    <div class="body">
+      <p><strong>Bạn thấy gì:</strong> <code>holidays_events.csv</code> trông như bảng "ngày đó
+      có phải ngày lễ không?", nhưng không phải vậy. Một dòng có <code>transferred = True</code>
+      nghĩa là ngày lễ đó <em>không</em> diễn ra vào ngày được liệt kê — một dòng
+      <code>Transfer</code> riêng sẽ mang ngày thực. Còn có những ngày <code>Bridge</code> và
+      dòng <code>Work Day</code>, và <code>locale</code> (National/Regional/Local) nghĩa là một
+      ngày lễ không áp dụng cho mọi cửa hàng.</p>
+      <p><strong>Cách xử lý:</strong> tính một <strong>lịch nghỉ lễ hiệu lực</strong> — bỏ các
+      dòng đã bị transferred, tôn trọng các dòng Transfer/Bridge/Work Day, và phân theo locale:
+      National → tất cả cửa hàng; Regional → bang đó; Local → thành phố đó.</p>
+      <div class="callout tip"><span class="tag">Bài học</span>
+        <p style="margin:.4em 0 0">Một cột tên giống feature không tự nhiên là feature dùng được.
+        Hiểu nghiệp vụ là một phần của feature engineering.</p></div>
+      <p class="muted"><strong>Ở đâu:</strong> các feature ngày lễ trong <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-4">
+    <summary><span class="arrow">▶</span><span class="t-num">4</span>
+      <span class="grow">Bất thường do động đất 2016</span>
+      <span class="status s-plan">⏳ Dự kiến</span></summary>
+    <div class="body">
+      <p><strong>Bạn thấy gì:</strong> một trận động đất 7,8 độ vào ngày
+      <strong>2016-04-16</strong> gây ra cú nhảy vọt doanh số do cứu trợ ≈ 1,41× so với baseline
+      trước động đất (đỉnh ≈ 1,76× vào 18/4).</p>
+      <p><strong>Tại sao nó âm thầm gây hại:</strong> một cú nhảy đột ngột không phải mẫu lặp lại.
+      Nếu không đánh dấu, trend và seasonality sẽ cố "giải thích" nó và bị méo đi.</p>
+      <p><strong>Cách xử lý:</strong> thêm một <strong>cờ binary (hoặc decaying) trong cửa sổ
+      động đất</strong> (~2016-04-16 → giữa tháng 5) để mô hình hấp thụ cú nhảy như một sự kiện
+      đã biết. Ta <em>không</em> xóa các dòng đó — làm vậy sẽ mở lại lỗ hổng trong lưới
+      gap-free từ Cạm bẫy 1.</p>
+      <div class="callout tip"><span class="tag">Bài học</span>
+        <p style="margin:.4em 0 0">Đừng xóa các bất thường — hãy <em>gắn nhãn</em> chúng.</p></div>
+      <p class="muted"><strong>Ở đâu:</strong> các feature lịch trong <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-5">
+    <summary><span class="arrow">▶</span><span class="t-num">5</span>
+      <span class="grow">Series mới / thưa (cạm bẫy độ phủ)</span>
+      <span class="status s-plan">⏳ Dự kiến</span></summary>
+    <div class="body">
+      <p><strong>Bạn thấy gì:</strong> một số cặp store + family có rất ít hoặc không có lịch sử
+      đáng kể (một nhóm hàng hầu như không bán, hoặc một nhóm vừa mới bắt đầu).</p>
+      <p><strong>Tại sao nó âm thầm gây hại:</strong> một mô hình phức tạp không thể học được
+      mẫu không tồn tại — nhưng phần nộp <strong>phải</strong> có giá trị cho cả 28,512 dòng.
+      Một dự đoán missing/NaN là không hợp lệ.</p>
+      <p><strong>Cách xử lý:</strong> với các series thưa, lùi về một dự đoán đơn giản kiểu
+      <strong>seasonal-naive / near-zero</strong>. Xem
+      <a href="{{ '/vi/stage-1/' | relative_url }}">Giai đoạn 1 baselines</a> để biết cơ chế.</p>
+      <p class="muted"><strong>Ở đâu:</strong> nhánh fallback trong <code>src/models.py</code>.</p>
+    </div>
+  </details>
+
+  <details class="trap" id="trap-6">
+    <summary><span class="arrow">▶</span><span class="t-num">6</span>
+      <span class="grow">Transactions chỉ có ở quá khứ (một ràng buộc cứng)</span>
+      <span class="status s-con">⚠️ Ràng buộc</span></summary>
+    <div class="body">
+      <p><strong>Bạn thấy gì:</strong> <code>transactions.csv</code> rất phong phú và hấp dẫn —
+      nhưng nó <strong>không được cung cấp cho 16 ngày test horizon</strong>. Bạn không biết
+      một cửa hàng có bao nhiêu transaction vào ngày bạn đang dự đoán.</p>
+      <div class="callout leak"><span class="tag">Cảnh báo leakage</span>
+        <p style="margin:.4em 0 0">Dùng transactions cùng ngày và validation sẽ trông tuyệt vời
+        — vì trong validation bạn tình cờ có cột đó. Trên tương lai thật thì nó không tồn tại,
+        nên mô hình sẽ sụp đổ.</p></div>
+      <p><strong>Cách xử lý:</strong> chỉ dùng transactions như một <strong>feature lag</strong>
+      (ví dụ transactions 7+ ngày trước, vốn <em>đã</em> biết tại thời điểm dự đoán).</p>
+      <p class="muted"><strong>Ở đâu:</strong> các feature lag trong <code>src/features.py</code>.</p>
+    </div>
+  </details>
+
+  <div class="card" style="margin-top:20px">
+    <h4 style="margin-top:0">Trạng thái tổng quan</h4>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Cạm bẫy</th><th>Vấn đề</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Thiếu ngày trong lịch</td><td><span class="status s-done">✅ Đã xử lý</span></td></tr>
+        <tr><td>2</td><td>Oil có khoảng trống + 43 ô trống</td><td><span class="status s-plan">⏳ Dự kiến</span></td></tr>
+        <tr><td>3</td><td>Holidays transferred/bridge</td><td><span class="status s-plan">⏳ Dự kiến</span></td></tr>
+        <tr><td>4</td><td>Cú nhảy động đất 2016</td><td><span class="status s-plan">⏳ Dự kiến</span></td></tr>
+        <tr><td>5</td><td>Series mới/thưa</td><td><span class="status s-plan">⏳ Dự kiến</span></td></tr>
+        <tr><td>6</td><td>Transactions = chỉ quá khứ</td><td><span class="status s-con">⚠️ Ràng buộc</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Tiếp theo: <a href="{{ '/vi/stage-1/' | relative_url }}">Giai đoạn 1 — Baseline</a>.
+</footer>

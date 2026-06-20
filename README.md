@@ -59,21 +59,25 @@ in place everything works without configuration.
 ```text
 src/                 # reusable logic (loaders, features, validation, models)
 notebooks/           # 01_eda onward — teaching/exploration, run via uv
-analyze/             # learner docs: one small topic per file (start at analyze/README.md)
-docs/                # published website (GitHub Pages): English + vi/ mirror
+analyze/             # learner docs (Markdown): README + concepts/ + data-traps/ + eda/
+docs/                # published website (GitHub Pages): en/ + vi/, organized by stage
 submissions/         # generated submission CSVs (git-ignored)
 iteration_log.md     # running log of each technique's holdout RMSLE
 store-sales-data/    # raw competition CSVs — ADD YOURSELF (git-ignored)
+specs/               # Spec Kit planning artifacts (internal — readers can ignore)
 ```
 
-> **New to the project?** Start with `analyze/README.md` — the index to the learner docs. It
-> explains the data's quirks (closed-day gaps, oil gaps, holiday handling) and the core concepts,
-> one small topic per file.
+## How to read this repo
 
-## Notes
+Pick the entry point that matches what you want:
 
-- The shared learner docs live under `analyze/` (Markdown, one topic per file); `docs/` is the
-  published website (GitHub Pages) and this `README.md` is the entry point for setup.
-- Validation uses a single time-respecting 16-day holdout; all models are scored by RMSLE in
-  log space with predictions clipped to non-negative.
-  
+- **Just want to understand the project (recommended for most readers)** →
+  open the **website**: <https://nqnguyen86.github.io/learning-time-series/>.
+  It walks the story stage by stage (foundations → stage 0 → stage 1 → …) in English
+  and Vietnamese, with the same content mirrored under `docs/en/` and `docs/vi/`.
+- **Want to focus on the tasks / dig into a specific concept or data quirk** →
+  read `analyze/README.md`. It's the index to the learner docs: small Markdown files,
+  one topic per file (closed-day gaps, oil gaps, holiday handling, lag/rolling features, etc.).
+- **Want to run or extend the code** → start in `src/` (reusable logic) and `notebooks/`
+  (exploration, run via `uv run jupyter lab`).
+

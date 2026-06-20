@@ -1,0 +1,206 @@
+---
+layout: default
+title: Giai đoạn 2 — Deterministic · Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/stage-2/
+journey: stage-2
+sections:
+  - { id: fourier,    label: "Trend + Fourier" }
+  - { id: laghorizon, label: "Lag horizon 16 ngày" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Giai đoạn 2 · feature chỉ-theo-ngày</div>
+  <h2>Backbone deterministic<a href="{{ '/vi/glossary/' | relative_url }}#g-deterministic" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a></h2>
+  <p class="lead">Giai đoạn 2 fit một mô hình mà feature chỉ phụ thuộc <em>vào ngày</em>: một
+  trend (sự dịch chuyển chậm, đã được <a href="{{ '/vi/stage-0/#trend' | relative_url }}">Giai
+  đoạn 0</a> xác nhận) cộng với các term Fourier theo mùa (weekly + annual, được biện minh
+  bởi periodogram và profile tháng). "Deterministic" nghĩa là tính được cho <em>bất kỳ</em>
+  ngày tương lai nào — hoàn hảo cho dự báo, vì ta luôn biết ngày.</p>
+  <p class="muted">Nguồn: <code>analyze/concepts/seasonality-fourier.md</code>,
+  <code>analyze/concepts/lag-horizon.md</code>.</p>
+</header>
+
+<section class="block" id="fourier">
+  <div class="eyebrow">Giai đoạn 2 · trend + seasonality</div>
+  <h3>Vì sao sin + cos biểu diễn được một chu kỳ</h3>
+
+  <details class="dd" open>
+    <summary><span class="lvl">cách hoạt động</span> Hai cột, đặt đỉnh ở bất kỳ vị trí nào</summary>
+    <div class="body">
+      <p>Một chu kỳ là một sóng; cách tự nhiên để viết nó là <code>sin</code> và <code>cos</code>.
+      Với mẫu theo tuần (chu kỳ = 7): <code>sin(2π·day/7)</code> và <code>cos(2π·day/7)</code>
+      mỗi cái hoàn thành một sóng đầy đủ mỗi 7 ngày. Tại sao cần <em>cả hai</em>? Một sin đơn lẻ
+      có vị trí đỉnh cố định; kết hợp một sin <strong>và</strong> một cos (với trọng số mà mô
+      hình học) cho phép đặt đỉnh ở <em>bất kỳ</em> vị trí nào, với <em>bất kỳ</em> độ cao nào —
+      nên chỉ với 2 con số mỗi chu kỳ, một hồi quy tuyến tính thường có thể fit "series này
+      đỉnh Thứ Bảy, series kia đỉnh Chủ Nhật."</p>
+      <h4>Dữ liệu mẫu — sin/cos chính xác so với trung bình thứ trong tuần (store 1, GROCERY I)</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th><code>d</code></th><th>thứ</th><th class="num">sin(2π·d/7)</th><th class="num">cos(2π·d/7)</th><th class="num">doanh số TB</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>T2</td><td class="num">0.000</td><td class="num">1.000</td><td class="num">2383</td></tr>
+          <tr><td>1</td><td>T3</td><td class="num">0.782</td><td class="num">0.623</td><td class="num">2409</td></tr>
+          <tr><td>2</td><td>T4</td><td class="num">0.975</td><td class="num">−0.223</td><td class="num">2770</td></tr>
+          <tr><td>3</td><td>T5</td><td class="num">0.434</td><td class="num">−0.901</td><td class="num">2229</td></tr>
+          <tr><td>4</td><td>T6</td><td class="num">−0.434</td><td class="num">−0.901</td><td class="num">2414</td></tr>
+          <tr><td>5</td><td>T7</td><td class="num">−0.975</td><td class="num">−0.223</td><td class="num">2323</td></tr>
+          <tr><td>6</td><td>CN</td><td class="num">−0.782</td><td class="num">0.623</td><td class="num">1031</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Mô hình học hai trọng số (<code>w_sin</code>, <code>w_cos</code>) cộng với intercept để
+      <code>intercept + w_sin·sin + w_cos·cos</code> vẽ được hình dạng này. Hai cột tái dựng
+      được nhịp điệu theo tuần và mở rộng sạch sẽ sang mọi ngày tương lai. (Cú lõm sắc một ngày
+      như Chủ Nhật cần thêm vài cặp Fourier — các <em>harmonic</em> bậc cao hơn — để xác định
+      chính xác. Đó là lý do spike 3,5 ngày trong periodogram có ý nghĩa — xem
+      <a href="{{ '/vi/stage-0/#periodogram' | relative_url }}">Giai đoạn 0 · periodogram</a>.)</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">công cụ</span> CalendarFourier &amp; DeterministicProcess</summary>
+    <div class="body">
+      <p><strong>CalendarFourier</strong> tạo các cột sin/cos đó từ các ngày. Thay vì 365 cột
+      riêng "có phải 1/1 / 2/1 / …" cho chu kỳ năm, bạn yêu cầu vài cặp Fourier và nhận một
+      nhóm nhỏ các cột mượt mà xấp xỉ cả sóng năm. Giai đoạn 0 đã nói cho ta biết bao nhiêu:
+      <strong>~2–3 harmonic tuần</strong> và <strong>~3–5 harmonic năm</strong>.</p>
+      <p><strong>DeterministicProcess</strong> lắp ráp bảng feature thời gian đầy đủ: một hằng
+      số, một <strong>trend</strong> (1, 2, 3, … đếm lên), và các term Fourier theo mùa. Ta cho
+      phép trend cong nhẹ vì Giai đoạn 0 cho thấy tốc độ tăng chậm lại.</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">vì sao khoảng trống phá nó</span> "Lệch pha" — bằng con số</summary>
+    <div class="body">
+      <p><strong>Pha</strong> = bạn đang ở đâu trong chu kỳ. Giá trị sin/cos đến từ
+      <em>vị trí</em> của dòng, giả định các ngày liên tiếp. <strong>Đúng</strong> (không có
+      khoảng trống):</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>ngày</th><th>thứ thực</th><th class="num">vị trí d</th><th class="num">sin đã dùng</th><th class="num">sales</th></tr></thead>
+        <tbody>
+          <tr><td>12/8</td><td>T7</td><td class="num">5</td><td class="num">−0.975</td><td class="num">1630</td></tr>
+          <tr><td>13/8</td><td>CN</td><td class="num">6</td><td class="num">−0.782</td><td class="num">952</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Bây giờ <strong>bỏ dòng T7 12/8</strong> (một ngày đóng cửa). Mọi thứ sau đó dịch lên một bậc:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>ngày</th><th>thứ thực</th><th class="num">vị trí d (đếm sai)</th><th class="num">sin đã dùng</th><th class="num">sales</th></tr></thead>
+        <tbody>
+          <tr><td>13/8</td><td>CN</td><td class="num"><strong>5</strong> (tưởng là T7)</td><td class="num"><strong>−0.975</strong></td><td class="num">952</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Doanh số Chủ Nhật 952 giờ được ghép với giá trị sin <em>của Thứ Bảy</em>. Mọi thứ trong
+      tuần sau khoảng trống đều bị gán sai một bậc — hỏng âm thầm. Đây <strong>chính là lý do</strong>
+      reindex của <a href="{{ '/vi/stage-0/#trap-1' | relative_url }}">Cạm bẫy 1</a> phải chạy
+      trước mọi seasonal feature.</p>
+      <div class="callout tip"><span class="tag">Mấu chốt</span>
+        <p style="margin:.4em 0 0">Điền lịch <em>trước</em> (để vị trí = ngày thực lại), <em>rồi</em>
+        mới tạo Fourier seasonality.</p></div>
+      <p class="muted"><strong>Ở đâu:</strong> các feature seasonal/deterministic trong
+      <code>src/features.py</code>.</p>
+    </div>
+  </details>
+</section>
+
+<section class="block" id="laghorizon">
+  <div class="eyebrow">Giai đoạn 2 · sàn của lag</div>
+  <h3>Lag horizon 16 ngày (vì sao lag phải ≥ 16)</h3>
+  <p>Backbone deterministic chỉ dùng date features. Khi ta thêm <strong>lag</strong> features
+  ở <a href="{{ '/vi/stage-3/' | relative_url }}">Giai đoạn 3</a> ("doanh số N ngày trước"),
+  chúng được dựng từ doanh số quá khứ. Nhưng cửa sổ dự đoán của ta dài 16 ngày và
+  <strong>không có doanh số thật bên trong nó</strong>. Điều đó đặt một sàn cứng cho lag ngắn
+  nhất ta có thể dùng.</p>
+  <pre>TRAIN (đã biết sales thật)         TEST / horizon (phải DỰ ĐOÁN, không có sales thật)
+... 31/7 ... 15/8  │  16/8  17/8  ...  30/8  31/8
+       ↑ ngày thật cuối       └──────── 16 ngày cần dự đoán ────────┘</pre>
+
+  <details class="dd" open>
+    <summary><span class="lvl">vấn đề</span> Vì sao lag_7 hỏng giữa chừng</summary>
+    <div class="body">
+      <p>Kiểm tra <code>lag_7</code> cho mỗi ngày test — "7 ngày trước" có nằm trong vùng đã
+      biết (≤ 15/8) không?</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Dự đoán ngày</th><th>7 ngày trước</th><th>Đã biết?</th></tr></thead>
+        <tbody>
+          <tr><td>16/8</td><td>9/8</td><td>✅ trong train</td></tr>
+          <tr><td>22/8</td><td>15/8</td><td>✅ ngày thật cuối</td></tr>
+          <tr><td><strong>23/8</strong></td><td><strong>16/8</strong></td><td>❌ một ngày test — không có sales thật</td></tr>
+          <tr><td>31/8</td><td>24/8</td><td>❌ ngày test</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Từ 23/8 trở đi, "7 ngày trước" trỏ ngược <em>vào chính giai đoạn test</em>.</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">cách xử lý</span> Vì sao lag_16 hoạt động cho cả horizon</summary>
+    <div class="body">
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Dự đoán ngày</th><th>16 ngày trước</th><th>Đã biết?</th></tr></thead>
+        <tbody>
+          <tr><td>16/8</td><td>31/7</td><td>✅ trong train</td></tr>
+          <tr><td>31/8</td><td><strong>15/8</strong></td><td>✅ ngày thật cuối</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Ngay cả ngày xa nhất (31/8) cũng chỉ với tay về đúng 15/8.</p>
+      <h4>Dữ liệu mẫu — đuôi của store 1, GROCERY I (thật)</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>ngày</th><th class="num">30/7</th><th class="num">31/7</th><th>…</th><th class="num">14/8</th><th class="num">15/8 (cuối thật)</th></tr></thead>
+        <tbody><tr><td>sales</td><td class="num">1086</td><td class="num">2966</td><td>…</td><td class="num">2407</td><td class="num">2508</td></tr></tbody>
+      </table>
+      </div>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>ngày dự đoán</th><th>nguồn lag_16 → giá trị</th><th>nguồn lag_17 → giá trị</th></tr></thead>
+        <tbody>
+          <tr><td>16/8</td><td>31/7 → <strong>2966</strong></td><td>30/7 → <strong>1086</strong></td></tr>
+          <tr><td>31/8</td><td>15/8 → <strong>2508</strong></td><td>14/8 → <strong>2407</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Mọi giá trị đều đến từ dữ liệu thật.</p>
+    </div>
+  </details>
+
+  <div class="callout key"><span class="tag">Nguyên tắc</span>
+    <p style="margin:.4em 0 0">Ngày cuối bạn dự đoán cách <strong>16 ngày</strong> so với dữ
+    liệu thật cuối cùng. Một lag muốn dùng được cho <em>cả</em> horizon phải với ngược về ít
+    nhất 16 ngày. Tổng quát: <strong>lag tối thiểu dùng được = độ dài horizon (H)</strong>.</p></div>
+
+  <h4>Quyết định thiết kế: direct<a href="{{ '/vi/glossary/' | relative_url }}#g-direct" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> forecasting với base lag = 16</h4>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Hướng</th><th>Cách làm</th><th>Đánh đổi</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Direct (đã chọn)</strong></td><td>Dự đoán cả 16 ngày một lúc, chỉ dùng lag thật ≥ 16 (lag_16, lag_17, … ; rolling window<a href="{{ '/vi/glossary/' | relative_url }}#g-rolling" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> neo tại shift(16))</td><td>Một ma trận feature, <strong>không có lỗi tích lũy</strong></td></tr>
+      <tr><td>Recursive (không chọn)</td><td>Dự đoán 16/8, coi nó là thật, dùng làm lag_1 cho 17/8, …</td><td>Cho phép lag ngắn, nhưng sai số <strong>lăn tuyết</strong> qua 16 ngày</td></tr>
+      <tr><td>Direct mỗi bước</td><td>Một mô hình riêng cho mỗi ngày horizon (ngày-1 dùng lag_1, ngày-16 dùng lag_16)</td><td>Lag hợp lệ mới nhất cho mỗi ngày, nhưng 16 mô hình</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout tip"><span class="tag">Horizon dài → dựa vào seasonality</span>
+    <p style="margin:.4em 0 0">Một horizon 1 năm sẽ cần <code>lag_365</code> làm lag ngắn nhất
+    — gần như vô dụng. Horizon càng dài, lag càng ít giúp, và càng phải dựa vào các feature
+    chỉ-theo-ngày (trend + Fourier seasonality, holidays), tính được cho bất kỳ ngày tương lai
+    nào. Vì thế việc mô hình hóa được chia tầng: một backbone deterministic trước (Giai đoạn này),
+    lag thêm vào bên trên như một booster ngắn hạn (Giai đoạn 3) — không bao giờ thay thế.</p></div>
+  <p class="muted"><strong>Ở đâu:</strong> các feature lag/rolling trong <code>src/features.py</code>;
+  được thực thi bởi guard base-lag ≥ 16 trong <code>src/validation.py :: assert_no_leak()</code>.</p>
+</section>
+
+<footer>
+  Tiếp theo: <a href="{{ '/vi/stage-3/' | relative_url }}">Giai đoạn 3 — Features</a>.
+</footer>

@@ -1,0 +1,93 @@
+---
+layout: default
+title: Giai đoạn 3 — Features · Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/stage-3/
+journey: stage-3
+sections:
+  - { id: lags,    label: "Lag & rolling" }
+  - { id: holiday, label: "Holiday features" }
+  - { id: payday,  label: "Payday features" }
+  - { id: promo,   label: "Promotion" }
+  - { id: oil,     label: "Oil" }
+  - { id: quake,   label: "Earthquake-window" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Giai đoạn 3 · learned features chồng lên backbone</div>
+  <h2>Lag, holiday, promo, oil, earthquake</h2>
+  <p class="lead">Giai đoạn 3 thêm các feature <em>phụ thuộc vào doanh số quá khứ hoặc bối cảnh
+  ngoại sinh</em> — mọi thứ mà backbone chỉ-theo-ngày của
+  <a href="{{ '/vi/stage-2/' | relative_url }}">Giai đoạn 2</a> không thấy được. Mọi feature
+  phải vượt qua luật <strong>không leakage</strong> và <strong>lag ≥ 16</strong>.</p>
+  <p class="muted">Nguồn: các file feature trong <code>analyze/concepts/*</code> và
+  <code>analyze/data-traps/*</code>.</p>
+</header>
+
+<section class="block" id="lags">
+  <div class="eyebrow">Giai đoạn 3 · booster ngắn hạn</div>
+  <h3>Lag &amp; rolling features</h3>
+  <p>Theo từng series: <code>lag_16</code>, <code>lag_17</code>, …, và rolling window
+  <em>neo tại <code>shift(16)</code></em> (ví dụ rolling mean 7 ngày của sales tính tại thời
+  điểm 16 ngày trước). Cùng hình dạng, khác statistic — chúng cho mô hình biết "16+ ngày trước,
+  series này đang ở mức nào." Với <code>transactions</code> (<a href="{{ '/vi/stage-0/#trap-6' | relative_url }}">Cạm bẫy 6</a>),
+  chỉ dùng dạng lag — không bao giờ cùng ngày.</p>
+  <p>Vì sao ≥ 16? Giải thích trong
+  <a href="{{ '/vi/stage-2/#laghorizon' | relative_url }}">Giai đoạn 2 · lag horizon</a>.</p>
+</section>
+
+<section class="block" id="holiday">
+  <div class="eyebrow">Giai đoạn 3 · lịch hiệu lực</div>
+  <h3>Holiday features</h3>
+  <p>Dựng <strong>lịch hiệu lực</strong> từ <code>holidays_events.csv</code>: bỏ 12 dòng
+  <code>transferred = True</code> gốc, tôn trọng các dòng Transfer / Bridge / Work Day, phân
+  theo locale (National → tất cả cửa hàng, Regional → bang đó, Local → thành phố đó). Output
+  một hoặc vài cờ sạch mỗi dòng. Đừng nhét nguyên file thô vào — xem
+  <a href="{{ '/vi/stage-0/#trap-3' | relative_url }}">Cạm bẫy 3</a> để biết lý do.</p>
+</section>
+
+<section class="block" id="payday">
+  <div class="eyebrow">Giai đoạn 3 · con sóng payday</div>
+  <h3>Payday features (một con sóng, không phải cờ)</h3>
+  <p>Từ <a href="{{ '/vi/stage-0/#calendar' | relative_url }}">Giai đoạn 0</a>: cờ ngây thơ "có
+  phải ngày 15?" chỉ ≈ 1,01× (không đáng kể), nhưng có một chu kỳ thực ≈ <strong>1,24×</strong>
+  trải qua tháng. Encode <strong>days-since-payday</strong> hoặc một cửa sổ ngắn sau payday —
+  như vậy mô hình có thể biểu diễn con sóng một cách mượt mà.</p>
+</section>
+
+<section class="block" id="promo">
+  <div class="eyebrow">Giai đoạn 3 · cái dễ</div>
+  <h3>Promotion feature</h3>
+  <p><code>onpromotion</code> được giao cùng ngày trong test horizon (không null), nên ta đưa
+  thẳng vào mô hình — không cần lag. Nó <strong>không có tín hiệu trước 2014-04-01</strong>,
+  nên đừng thiết kế feature giả định nó luôn tồn tại.</p>
+</section>
+
+<section class="block" id="oil">
+  <div class="eyebrow">Giai đoạn 3 · oil</div>
+  <h3>Oil feature (forward-fill, kỳ vọng vừa phải)</h3>
+  <p>Forward-fill trước (không interpolation — đó là nhìn lén tương lai, xem
+  <a href="{{ '/vi/stage-0/#trap-2' | relative_url }}">Cạm bẫy 2</a>). Dùng như một feature,
+  nhưng nhớ kết quả phụ của Giai đoạn 0: correlation thô oil↔sales <strong>−0,62</strong>
+  <strong>tụt xuống ≈ 0,05</strong> sau khi detrend. Đừng kỳ vọng phép màu; holdout quyết định.</p>
+</section>
+
+<section class="block" id="quake">
+  <div class="eyebrow">Giai đoạn 3 · gắn nhãn, đừng xóa</div>
+  <h3>Earthquake-window flag</h3>
+  <p>Một cờ binary (hoặc decaying) rộng tay trải khoảng ≈ 2016-04-16 → giữa tháng 5/2016. Từ
+  <a href="{{ '/vi/stage-0/#anomalies' | relative_url }}">Giai đoạn 0</a>: spike cấp tính
+  (≈ 1,41×, đỉnh 1,76× ngày 18/4) chỉ <strong>~1 tuần</strong> — nhưng cửa sổ rộng tay vẫn ổn;
+  mô hình có thể tự giảm trọng số phần đuôi.</p>
+
+  <div class="callout leak"><span class="tag">Giai đoạn 3 trong một câu</span>
+    <p style="margin:.4em 0 0">Mọi cột mới đều <em>biết được tại thời điểm dự đoán</em>: lag với
+    ngược về ≥ 16 ngày; oil được forward-fill; transactions chỉ ở dạng lag; promo là tín hiệu
+    cùng ngày không leakage. <code>assert_no_leak()</code> báo lỗi ngay khi bạn quên.</p></div>
+  <p class="muted"><strong>Ở đâu:</strong> <code>src/features.py</code> (mọi feature builder
+  tổng hợp qua đây).</p>
+</section>
+
+<footer>
+  Tiếp theo: <a href="{{ '/vi/stage-4/' | relative_url }}">Giai đoạn 4 — Hybrid &amp; submission</a>.
+</footer>

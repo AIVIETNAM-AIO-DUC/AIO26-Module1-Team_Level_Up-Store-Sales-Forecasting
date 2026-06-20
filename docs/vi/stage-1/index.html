@@ -1,0 +1,93 @@
+---
+layout: default
+title: Giai đoạn 1 — Baseline · Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/stage-1/
+journey: stage-1
+sections:
+  - { id: baseline, label: "Seasonal-naive & near-zero" }
+  - { id: gate,     label: "Ai quyết định dùng quy tắc nào" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Giai đoạn 1 · sàn mọi mô hình phải vượt qua</div>
+  <h2>Baseline<a href="{{ '/vi/glossary/' | relative_url }}#g-baseline" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> dự báo: seasonal-naive &amp; near-zero</h2>
+  <p class="lead">Cách dự đoán đơn giản nhất có thể — không huấn luyện, không toán. Việc của
+  Giai đoạn 1 là chấm các baseline này trên
+  <a href="{{ '/vi/foundations/#holdout' | relative_url }}">holdout</a> và <strong>ghi lại con
+  số cần vượt qua</strong>. Chúng cũng đóng vai trò
+  <strong>quy tắc fallback</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-fallback" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
+  cho các series quá thưa để mô hình hóa (xem
+  <a href="{{ '/vi/stage-0/#trap-5' | relative_url }}">Cạm bẫy 5</a>).</p>
+  <p class="muted">Nguồn: <code>analyze/concepts/baselines.md</code>.</p>
+</header>
+
+<section class="block" id="baseline">
+  <div class="eyebrow">Giai đoạn 1 · hai quy tắc, không huấn luyện</div>
+  <h3>Hai baseline</h3>
+  <p>Cả hai đều dự đoán <strong>16 ngày tương lai</strong>; không cái nào thay đổi dữ liệu quá
+  khứ.</p>
+
+  <details class="dd" open>
+    <summary><span class="lvl">cách hoạt động</span> Seasonal-naive = sao chép tuần trước</summary>
+    <div class="body">
+      <p><strong>Naive</strong> = không học gì cả; sao chép quá khứ tới tương lai.
+      <strong>Seasonal</strong> = sao chép từ cùng vị trí trong chu kỳ trước (ở đây là chu kỳ
+      tuần).</p>
+      <pre>dự đoán Thứ Hai tới  = doanh số Thứ Hai tuần trước
+dự đoán Thứ Ba tới   = doanh số Thứ Ba tuần trước
+…lặp lại mẫu 7 ngày của tuần trước trên cả 16 ngày horizon</pre>
+      <h4>Dữ liệu mẫu — store 1, GROCERY I (thật)</h4>
+      <p>Tuần biết được gần nhất (7 ngày kết thúc Thứ Ba 15/8/2017):</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Tuần trước</th><th class="num">T4 9/8</th><th class="num">T5 10/8</th><th class="num">T6 11/8</th><th class="num">T7 12/8</th><th class="num">CN 13/8</th><th class="num">T2 14/8</th><th class="num">T3 15/8</th></tr></thead>
+        <tbody><tr><td>sales</td><td class="num">2719</td><td class="num">2591</td><td class="num">1270</td><td class="num">1630</td><td class="num">952</td><td class="num">2407</td><td class="num">2508</td></tr></tbody>
+      </table>
+      </div>
+      <p>Seasonal-naive sao chép từng thứ trong tuần tới — mẫu 7 ngày chỉ đơn thuần lặp lại trên
+      horizon, giữ nguyên hình dạng riêng của series này (ở đây là cú lõm Chủ Nhật xuống
+      <strong>952</strong> so với đỉnh giữa tuần ~2,5–2,7k).</p>
+    </div>
+  </details>
+
+  <details class="dd">
+    <summary><span class="lvl">cách hoạt động</span> Near-zero = "không bán gì → dự đoán không gì"</summary>
+    <div class="body">
+      <p>Nếu một series về cơ bản không bao giờ có doanh số, dự báo an toàn nhất là
+      <strong>≈ 0</strong>. Ví dụ — <strong>store 1, BOOKS</strong>, tuần trước toàn số 0:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>7 ngày trước (store 1, BOOKS)</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th><th class="num">0</th></tr></thead>
+      </table>
+      </div>
+      <p>→ dự đoán <strong>0</strong> cho cả 16 ngày horizon. Không có gì để sao chép.</p>
+    </div>
+  </details>
+</section>
+
+<section class="block" id="gate">
+  <div class="eyebrow">Giai đoạn 1 · định tuyến</div>
+  <h3>Ai quyết định dùng quy tắc nào? (không phải mô hình)</h3>
+  <p>Một hiểu lầm phổ biến: mô hình đã huấn luyện <strong>không</strong> chọn giữa dự đoán
+  chính, seasonal-naive, và near-zero. Lựa chọn được đưa ra <em>trước</em> khi mô hình hóa,
+  bằng một <strong>cổng dựa-trên-quy-tắc</strong> đơn giản (một câu <code>if</code>) dựa vào
+  lịch sử của từng series. Các series thưa bị tách ra và không bao giờ tới mô hình.</p>
+  <pre>Với mỗi series trong 1,782:
+   ├─ Có đủ lịch sử?       ──►  dùng mô hình CHÍNH (cái đã học)
+   └─ Quá thưa?            ──►  dùng quy tắc FALLBACK
+                                   ├─ có chút lịch sử để sao chép  ►  seasonal-naive
+                                   └─ về cơ bản chưa từng bán      ►  near-zero (~0)</pre>
+  <p>Một mô hình đã huấn luyện là một hàm số: nó luôn trả về một con số — không thể để trống.
+  Rủi ro với series không có lịch sử không phải là rỗng; là con số trả về sẽ là rác không tin
+  được. Nên ta định tuyến series thưa đi vòng qua mô hình (cách sạch sẽ hơn), chỉ huấn luyện
+  trên series khỏe mạnh, rồi ghép hai tập dự đoán lại thành đủ 28,512 dòng — thực hiện ở
+  <a href="{{ '/vi/stage-4/' | relative_url }}">Giai đoạn 4</a>.</p>
+  <p class="muted"><strong>Ở đâu:</strong> nhánh fallback trong <code>src/models.py</code>;
+  được chấm bởi <code>rmsle()</code> trên holdout, giống mọi giai đoạn sau.</p>
+</section>
+
+<footer>
+  Tiếp theo: <a href="{{ '/vi/stage-2/' | relative_url }}">Giai đoạn 2 — Deterministic</a> (mô
+  hình đã học đầu tiên).
+</footer>

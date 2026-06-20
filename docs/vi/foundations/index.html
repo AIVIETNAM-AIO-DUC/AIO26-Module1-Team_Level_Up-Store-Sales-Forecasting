@@ -1,0 +1,219 @@
+---
+layout: default
+title: Nền tảng — Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/foundations/
+journey: foundations
+sections:
+  - { id: predict, label: "Chúng ta dự đoán gì" }
+  - { id: data,    label: "Làm quen với dữ liệu" }
+  - { id: rmsle,   label: "RMSLE (thử ngay)" }
+  - { id: holdout, label: "Holdout trung thực" }
+  - { id: rules,   label: "5 nguyên tắc" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Nền tảng · đọc một lần, dùng mãi</div>
+  <h2>Từ vựng mọi giai đoạn đều dùng</h2>
+  <p class="lead">Cái ta đang dự đoán, bảy file CSV đầu vào, metric (với calculator tương tác),
+  holdout trung thực, và năm nguyên tắc được thực thi trong code. Mọi giai đoạn sau đều giả
+  định bạn đã nội hóa trang này.</p>
+</header>
+
+<section class="block" id="predict">
+  <div class="eyebrow">Nền tảng · ta dự đoán cái gì</div>
+  <h3>Thực ra chúng ta đang dự đoán cái gì?</h3>
+  <p>Một chuỗi siêu thị ở Ecuador muốn dự đoán <strong>doanh số hàng ngày</strong>. Có
+  <strong>54 cửa hàng</strong>, mỗi cửa hàng bán <strong>33 nhóm sản phẩm</strong> (BEVERAGES,
+  PRODUCE, AUTOMOTIVE, …), được ghi nhận <strong>một lần mỗi ngày</strong>.</p>
+  <p>Cho lịch sử nhiều năm (2013-01-01 → 2017-08-15), hãy dự đoán doanh số cho
+  <strong>16 ngày tiếp theo</strong> (2017-08-16 → 2017-08-31) cho từng cửa hàng + nhóm sản
+  phẩm. Khoảng thời gian cố định đó có một tên gọi mà ta sẽ dùng xuyên suốt:
+  <strong>horizon</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-horizon" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (= 16 ngày).</p>
+
+  <div class="callout key">
+    <span class="tag">Từ khóa · series</span>
+    <p style="margin:.4em 0 0">Một <strong>series</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-series" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> là lịch sử doanh số hàng ngày của
+    <em>một nhóm sản phẩm tại một cửa hàng</em> — "thứ có quá khứ và tương lai." Gần như mọi
+    thao tác đều diễn ra <em>trên từng series</em>, không bao giờ trộn lẫn giữa các series.</p>
+  </div>
+
+  <pre>54 cửa hàng × 33 nhóm = <b>1,782 series</b>
+16 ngày × 1,782 series  = <b>28,512 dự đoán</b>   ← đúng số dòng ta phải nộp</pre>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n">54</div><div class="l">cửa hàng</div></div>
+    <div class="kpi"><div class="n">33</div><div class="l">nhóm sản phẩm</div></div>
+    <div class="kpi"><div class="n">1,782</div><div class="l">series (54 × 33)</div></div>
+    <div class="kpi"><div class="n">1,688</div><div class="l">ngày lịch sử</div></div>
+  </div>
+  <p class="muted">Hãy nhớ con số <strong>1,782</strong> — nó sẽ xuất hiện lại như một mốc kiểm
+  tra xuyên suốt.</p>
+</section>
+
+<section class="block" id="data">
+  <div class="eyebrow">Nền tảng · đầu vào</div>
+  <h3>Làm quen với dữ liệu (nhìn trước khi mô hình hóa)</h3>
+  <p>Trước khi đụng vào mô hình, hãy nhìn xem bạn có gì. Mỗi file, đã kiểm chứng:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>File</th><th class="num">Số dòng</th><th>Bên trong có gì</th></tr></thead>
+    <tbody>
+      <tr><td><code>train.csv</code></td><td class="num">3,000,888</td><td>id, date, store_nbr, family, sales, onpromotion · 2013-01-01 → 2017-08-15</td></tr>
+      <tr><td><code>test.csv</code></td><td class="num">28,512</td><td>cùng cột nhưng không có <code>sales</code> · 16 ngày cần dự đoán</td></tr>
+      <tr><td><code>stores.csv</code></td><td class="num">54</td><td>store_nbr, city, state, type, cluster</td></tr>
+      <tr><td><code>transactions.csv</code></td><td class="num">83,488</td><td>date, store_nbr, transactions</td></tr>
+      <tr><td><code>oil.csv</code></td><td class="num">1,218</td><td>date, dcoilwtico (giá dầu) · <strong>43 giá bị trống</strong></td></tr>
+      <tr><td><code>holidays_events.csv</code></td><td class="num">350</td><td>date, type, locale, locale_name, description, transferred · <strong>12 transferred</strong>, <strong>5 Work Day</strong></td></tr>
+      <tr><td><code>sample_submission.csv</code></td><td class="num">28,512</td><td>id, sales — đúng định dạng output của ta</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="callout tip">
+    <span class="tag">Dùng được · onpromotion</span>
+    <p style="margin:.4em 0 0">Khác với transactions (<a href="{{ '/vi/stage-0/#trap-6' | relative_url }}">Cạm bẫy 6</a>),
+    số lượng khuyến mãi <strong>có</strong> được cung cấp cho test horizon<a href="{{ '/vi/glossary/' | relative_url }}#g-horizon" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
+    — khuyến mãi được lên kế hoạch trước — nên đây là một biến dự đoán mạnh <em>và</em> không bị
+    leakage<a href="{{ '/vi/glossary/' | relative_url }}#g-leakage" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>, ta đưa
+    thẳng vào (cùng ngày<a href="{{ '/vi/glossary/' | relative_url }}#g-sameday" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>,
+    không cần lag<a href="{{ '/vi/glossary/' | relative_url }}#g-lag" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>).</p>
+  </div>
+</section>
+
+<section class="block" id="rmsle">
+  <div class="eyebrow">Nền tảng · metric · tương tác</div>
+  <h3>Metric: RMSLE</h3>
+  <p>Đọc tên ngược lại và nó là một công thức, mỗi chữ một bước:</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Chữ</th><th>Bước</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Error</strong></td><td>mỗi dự đoán sai bao nhiêu: <code>prediction − actual</code></td></tr>
+      <tr><td><strong>Logarithmic</strong></td><td>nhưng trước tiên lấy <strong>log</strong> của cả hai số</td></tr>
+      <tr><td><strong>Squared</strong></td><td>bình phương từng sai số (vượt quá và thiếu đều bị tính)</td></tr>
+      <tr><td><strong>Mean</strong></td><td>tính trung bình tất cả các sai số bình phương</td></tr>
+      <tr><td><strong>Root</strong></td><td>lấy căn bậc hai ở cuối</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
+
+  <div class="callout key"><span class="tag">Tại sao là log?</span>
+    <p style="margin:.4em 0 0">Nó đo sai số <strong>tương đối</strong> (tỉ lệ), không phải
+    khoảng cách thô. Dự đoán 15 trong khi thật là 5, và dự đoán 3,000 trong khi thật là 1,000
+    — cả hai đều "cao gấp 3 lần," tệ như nhau. Vì <code>log(a) − log(b) = log(a/b)</code>,
+    RMSLE hỏi "bạn sai <em>bao nhiêu lần</em>?" Đó là cách một family nhỏ và một family lớn
+    được tính công bằng.</p></div>
+
+  <p><code>log1p(x) = log(1+x)</code> nên <code>log1p(0)=0</code> (không crash khi doanh số bằng
+  0); hàm ngược của nó <code>expm1</code> trả về đơn vị thật. Hai hệ quả ta áp cho mọi mô hình:
+  ta <strong>huấn luyện trong log space</strong>, và ta <strong>clip dự đoán về ≥ 0</strong>.</p>
+
+  <div class="card">
+    <h4 style="margin-top:0">Thử ngay — RMSLE so với RMSE thường, đặt cạnh nhau</h4>
+    <p class="muted">Chỉnh sửa actual và prediction. Dự đoán âm sẽ tự động bị clip về 0 trước
+    khi chấm (số âm sẽ làm <code>log1p</code> không xác định). Mặc định nạp ví dụ đã kiểm chứng
+    trong hướng dẫn.</p>
+    <div class="calc">
+      <div class="rows">
+        <div class="hd"><div>actual</div><div>prediction</div><div>clipped</div></div>
+        <div class="r"><input class="ac" type="number" value="5"><input class="pr" type="number" value="15"><div class="clip"></div></div>
+        <div class="r"><input class="ac" type="number" value="1000"><input class="pr" type="number" value="3000"><div class="clip"></div></div>
+        <div class="r"><input class="ac" type="number" value="0"><input class="pr" type="number" value="-2"><div class="clip"></div></div>
+        <div class="r"><input class="ac" type="number" value="200"><input class="pr" type="number" value="195"><div class="clip"></div></div>
+      </div>
+      <div class="btnrow">
+        <button id="recalc">Tính lại</button>
+        <button class="ghost" id="reset">Quay lại ví dụ đã kiểm chứng</button>
+      </div>
+      <div class="scoreboard">
+        <div class="score rmse"><div class="lab">RMSE thường (khoảng cách thô)</div><div class="val" id="rmseVal">—</div><div class="note">bị dòng có thang đo lớn nhất chi phối</div></div>
+        <div class="score rmsle"><div class="lab">RMSLE (sai số tỉ lệ)</div><div class="val" id="rmsleVal">—</div><div class="note">family nhỏ &amp; lớn được tính công bằng</div></div>
+      </div>
+    </div>
+  </div>
+  <p class="muted">Với ví dụ mặc định, đáp án là <strong>RMSE ≈ 1000.0</strong> và
+  <strong>RMSLE ≈ 0.736</strong>. RMSE gần như hoàn toàn bị chi phối bởi dòng 1000→3000; RMSLE
+  tính cả hai dòng "sai gấp 3" cùng tầm với nhau.</p>
+  <p class="muted"><strong>Ở đâu:</strong> <code>src/validation.py :: rmsle()</code> và
+  <code>clip_nonneg()</code>.</p>
+</section>
+
+<section class="block" id="holdout">
+  <div class="eyebrow">Nền tảng · bảng điểm</div>
+  <h3>Làm sao biết một mô hình tốt? Một holdout trung thực</h3>
+  <p>Một mô hình luôn trông xuất sắc trên dữ liệu mà nó đã huấn luyện — nó đã thấy đáp án.
+  Tín hiệu trung thực duy nhất là sai số trên dữ liệu mà nó <strong>không</strong> huấn luyện.
+  Ta giữ riêng một phần dữ liệu của mình làm bảng điểm tức thì, không giới hạn: một
+  <strong>holdout</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-holdout" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>.</p>
+
+  <div class="callout leak">
+    <span class="tag">Nguyên tắc time-series</span>
+    <p style="margin:.4em 0 0">K-fold<a href="{{ '/vi/glossary/' | relative_url }}#g-kfold" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> ngẫu nhiên <strong>gian lận</strong> ở đây. Nếu validate<a href="{{ '/vi/glossary/' | relative_url }}#g-validation" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
+    trên một ngày <em>ở giữa</em> lịch sử thì mô hình huấn luyện trên những ngày đến <em>sau</em>
+    ngày đó — nó nhìn thấy tương lai so với cái nó cần dự đoán. Phải cắt một nhát sạch theo
+    <em>thời gian</em>.</p>
+  </div>
+
+  <pre>train: 2013-01-01 ........... 2017-07-30  │  holdout: 2017-07-31 → 2017-08-15
+       (mô hình học từ quá khứ)            │  (mô hình dự đoán tới, không nhìn thấy)</pre>
+  <p>Ta giữ riêng <strong>16 ngày huấn luyện cuối</strong> — cùng độ dài, cùng hình dạng "dự
+  đoán 16 ngày tới" như nhiệm vụ thật.</p>
+
+  <h4>Holdout KHÔNG phải <code>test.csv</code> — đừng nhầm</h4>
+  <div class="scroll">
+  <table>
+    <thead><tr><th></th><th>Holdout</th><th><code>test.csv</code></th></tr></thead>
+    <tbody>
+      <tr><td>Đến từ</td><td>cắt ra từ <code>train.csv</code></td><td>file riêng do Kaggle cung cấp</td></tr>
+      <tr><td>Ngày</td><td>2017-07-31 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
+      <tr><td>Biết doanh số thật?</td><td><strong>Có</strong> — ta chỉ giấu đi</td><td><strong>Không</strong> — đó là cái cần dự đoán</td></tr>
+      <tr><td>Ai chấm</td><td><strong>ta</strong> tự chấm, tức thì, tại máy</td><td><strong>Kaggle</strong>, sau khi nộp</td></tr>
+      <tr><td>Mục đích</td><td>tổng duyệt riêng để so sánh các mô hình</td><td>bài thi thật sự được chấm điểm</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout tip"><span class="tag">Rồi huấn luyện lại trên toàn bộ</span>
+    <p style="margin:.4em 0 0">16 ngày cuối chỉ bị giấu đi <em>trong lúc so sánh các mô
+    hình</em>. Khi đã chọn được hướng tốt nhất, hãy fit lại trên <strong>toàn bộ</strong> dữ
+    liệu huấn luyện (gồm cả 16 ngày đó) trước khi dự đoán <code>test.csv</code> thật — những
+    ngày gần đây nhất mang trend<a href="{{ '/vi/glossary/' | relative_url }}#g-trend" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> và seasonality<a href="{{ '/vi/glossary/' | relative_url }}#g-seasonality" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> tươi mới nhất.</p></div>
+  <p class="muted"><strong>Ở đâu:</strong> <code>src/validation.py :: train_holdout_split()</code>
+  thực hiện việc cắt và assert đúng thứ tự.</p>
+</section>
+
+<section class="block" id="rules">
+  <div class="eyebrow">Nền tảng · lan can bảo vệ</div>
+  <h3>Năm nguyên tắc giữ ta trung thực</h3>
+  <p>Mọi thứ trong phần Nền tảng cô đọng lại thành năm nguyên tắc — và chúng được <em>thực thi
+  trong code</em>, để sai sót báo lỗi to chứ không âm thầm phá điểm số.</p>
+  <div class="card">
+    <ol style="margin:0; padding-left:1.2em">
+      <li style="margin:.5em 0"><strong>Không leakage.</strong> Mọi feature<a href="{{ '/vi/glossary/' | relative_url }}#g-feature" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> phải biết được tại
+      thời điểm dự đoán. Lag dùng đúng quá khứ; oil được forward-fill, không bao giờ
+      interpolation; transactions chỉ ở dạng lag.
+      <span class="muted">Bảo vệ: <code>assert_no_leak()</code>.</span></li>
+      <li style="margin:.5em 0"><strong>Gap-free trước khi tạo feature.</strong> Reindex của Cạm
+      bẫy 1 chạy <em>trước</em> mọi feature lag hay seasonality, để "lùi 7 dòng" luôn nghĩa là
+      "lùi 7 ngày." <span class="muted">Bảo vệ: <code>assert_gapfree()</code>.</span></li>
+      <li style="margin:.5em 0"><strong>Lag phải vượt qua horizon (≥ 16 ngày).</strong> Ngày
+      cuối ta dự đoán (31/8) cách 16 ngày so với ngày dữ liệu thật cuối cùng (15/8). Ta dự đoán
+      cả 16 ngày một lúc (<em>direct forecasting</em>) với base lag là 16. Xem
+      <a href="{{ '/vi/stage-2/#laghorizon' | relative_url }}">phần đi sâu về lag horizon</a>.</li>
+      <li style="margin:.5em 0"><strong>Validation tôn trọng thời gian.</strong> Một holdout 16
+      ngày phản chiếu horizon thật; train chỉ trên dữ liệu cũ hơn; cấm K-fold ngẫu nhiên.</li>
+      <li style="margin:.5em 0"><strong>Xử lý metric nhất quán.</strong> RMSLE tính trên
+      <code>log1p</code>, dự đoán bị clip ≥ 0, áp dụng giống nhau cho mọi mô hình để điểm số có
+      thể so sánh được thực sự.</li>
+    </ol>
+  </div>
+  <div class="callout key"><span class="tag">Bài học cấp cao</span>
+    <p style="margin:.4em 0 0">Khi một nguyên tắc quan trọng, hãy biến nó thành assertion. Một
+    "lính canh" <em>báo lỗi</em> ngay khi bạn phá luật giá trị hơn nhiều một comment nhắc bạn
+    đừng làm vậy.</p></div>
+</section>
+
+<footer>
+  Tiếp theo: <a href="{{ '/vi/stage-0/' | relative_url }}">Giai đoạn 0 — EDA</a>.
+</footer>

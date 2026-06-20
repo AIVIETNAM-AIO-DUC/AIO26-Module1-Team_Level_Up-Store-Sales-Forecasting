@@ -1,0 +1,93 @@
+---
+layout: default
+title: Từ điển thuật ngữ · Dự báo Doanh số Cửa hàng
+lang: vi
+permalink: /vi/glossary/
+journey: glossary
+sections:
+  - { id: nentang, label: "Nền tảng" }
+  - { id: thongke, label: "Thống kê & EDA" }
+  - { id: mohinh,  label: "Mô hình hóa" }
+---
+
+<header class="hero">
+  <div class="eyebrow">Tham khảo · giải nghĩa nhanh</div>
+  <h2>Từ điển thuật ngữ</h2>
+  <p class="lead">Tài liệu giữ nguyên các thuật ngữ tiếng Anh thông dụng trong ML/time-series
+  (để bạn quen mặt chữ khi đọc tài liệu khác). Bảng dưới giải nghĩa ngắn gọn từng từ. Mỗi
+  thuật ngữ trong bài có biểu tượng <sup>ⓘ</sup> dẫn về đây.</p>
+  <p class="muted">Định nghĩa đầy đủ cho mỗi khái niệm nằm trong <code>analyze/concepts/*</code>
+  và <code>analyze/eda/*</code> — đây chỉ là tra cứu nhanh.</p>
+</header>
+
+<section class="block" id="nentang">
+  <div class="eyebrow">Tham khảo · nền tảng</div>
+  <h3>Nền tảng</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
+    <tbody>
+      <tr id="g-series"><td><strong>series</strong></td><td>Lịch sử doanh số hàng ngày của <em>một nhóm sản phẩm tại một cửa hàng</em> — đơn vị có "quá khứ và tương lai" mà ta dự đoán. Có 54 × 33 = 1,782 series.</td></tr>
+      <tr id="g-horizon"><td><strong>horizon / test horizon</strong></td><td>16 ngày tương lai cần dự đoán (2017-08-16 → 31).</td></tr>
+      <tr id="g-holdout"><td><strong>holdout</strong></td><td>Phần dữ liệu cắt ra từ <code>train.csv</code>, giấu đáp án đi, để tự chấm mô hình tại máy trước khi nộp.</td></tr>
+      <tr id="g-leakage"><td><strong>leakage</strong></td><td>Rò rỉ — dùng thông tin mà <em>thực tế chưa có</em> ở thời điểm dự đoán; làm điểm validation đẹp giả tạo rồi sụp khi chạy thật.</td></tr>
+      <tr id="g-lag"><td><strong>lag</strong></td><td>Dùng giá trị của <em>ngày trước đó</em> (trễ N ngày) — thứ chắc chắn đã biết tại thời điểm dự đoán.</td></tr>
+      <tr id="g-sameday"><td><strong>same-day / cùng ngày</strong></td><td>Dùng giá trị của <em>chính</em> ngày dự đoán; chỉ an toàn khi ta thực sự biết trước (như <code>onpromotion</code>).</td></tr>
+      <tr id="g-baseline"><td><strong>baseline</strong></td><td><strong>Hai nghĩa:</strong> (1) mức tham chiếu để so sánh (vd. doanh số trung bình trước động đất); (2) mô hình "ngây thơ" Giai đoạn 1 (seasonal-naive / near-zero) làm sàn điểm mọi mô hình phải vượt.</td></tr>
+      <tr id="g-fallback"><td><strong>fallback</strong></td><td>Phương án dự phòng đơn giản cho các series quá thưa để mô hình hóa (rơi về seasonal-naive / near-zero).</td></tr>
+      <tr id="g-feature"><td><strong>feature</strong></td><td>Biến đầu vào của mô hình (vd. lag, ngày lễ, khuyến mãi). <em>feature engineering</em> = công việc tạo/biến đổi các biến này.</td></tr>
+      <tr id="g-metric"><td><strong>metric</strong></td><td>Thước đo chấm điểm mô hình — ở đây là RMSLE.</td></tr>
+      <tr id="g-validation"><td><strong>validation / validate</strong></td><td>Kiểm định mô hình trên dữ liệu nó <em>chưa thấy</em> (vd. holdout) để ước lượng chất lượng thật.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="block" id="thongke">
+  <div class="eyebrow">Tham khảo · thống kê &amp; EDA</div>
+  <h3>Thống kê &amp; EDA</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
+    <tbody>
+      <tr id="g-trend"><td><strong>trend</strong></td><td>Xu hướng dịch chuyển dài hạn của chuỗi (ở đây doanh số tăng dần qua các năm).</td></tr>
+      <tr id="g-seasonality"><td><strong>seasonality</strong></td><td>Nhịp lặp lại theo lịch (theo tuần, theo năm).</td></tr>
+      <tr id="g-stationary"><td><strong>stationary</strong></td><td>Chuỗi có thống kê (trung bình, phương sai) ổn định theo thời gian. Doanh số ở đây <em>không</em> stationary vì đang tăng.</td></tr>
+      <tr id="g-correlation"><td><strong>correlation</strong></td><td>Hệ số tương quan: đo hai đại lượng cùng lên/xuống ra sao (từ −1 đến 1). Tương quan cao <em>không</em> đồng nghĩa nhân quả.</td></tr>
+      <tr id="g-confound"><td><strong>confound</strong></td><td>Biến gây nhiễu — một yếu tố thứ ba khiến quan hệ quan sát được bị hiểu sai (vd. family lớn vừa khuyến mãi <em>vừa</em> bán nhiều).</td></tr>
+      <tr id="g-detrend"><td><strong>detrend</strong></td><td>Khử thành phần xu hướng trước khi xét quan hệ, để tránh "tương quan giả" do hai bên cùng tăng theo thời gian.</td></tr>
+      <tr id="g-lift"><td><strong>lift</strong></td><td>Mức tăng so với ngày thường, thường tính bằng lần (vd. 1,24× = cao hơn 24%).</td></tr>
+      <tr id="g-spike"><td><strong>spike</strong></td><td>Cú vọt / đỉnh nhọn đột ngột trong chuỗi.</td></tr>
+      <tr id="g-periodogram"><td><strong>periodogram</strong></td><td>"Lăng kính" tách chuỗi thành các sóng chu kỳ, cho thấy chu kỳ nào mạnh (spike cao = nhịp lặp mạnh).</td></tr>
+      <tr id="g-fft"><td><strong>FFT</strong></td><td>Thuật toán tách tín hiệu thành các sóng tần số — "cỗ máy tìm chu kỳ" đứng sau periodogram.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="block" id="mohinh">
+  <div class="eyebrow">Tham khảo · mô hình hóa</div>
+  <h3>Mô hình hóa</h3>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
+    <tbody>
+      <tr id="g-deterministic"><td><strong>deterministic</strong></td><td>Feature tính được cho <em>bất kỳ</em> ngày nào chỉ từ ngày tháng (trend + Fourier) — hoàn hảo cho dự báo vì ta luôn biết ngày.</td></tr>
+      <tr id="g-kfold"><td><strong>K-fold</strong></td><td>Chia dữ liệu ngẫu nhiên thành k phần để kiểm định — <strong>SAI</strong> cho time-series vì làm mô hình "nhìn thấy" tương lai. Ta dùng holdout theo thời gian thay thế.</td></tr>
+      <tr id="g-reindex"><td><strong>reindex</strong></td><td>Dựng lại chỉ mục ngày để mỗi series có đủ mọi ngày trong lịch (lấp các ngày đóng cửa bằng sales = 0).</td></tr>
+      <tr id="g-forwardfill"><td><strong>forward-fill</strong></td><td>Lấp ô trống bằng giá trị đã biết <em>gần nhất phía trước</em> (chỉ nhìn quá khứ → không leakage).</td></tr>
+      <tr id="g-interpolation"><td><strong>interpolation</strong></td><td>Lấp ô trống bằng trung bình hai bên — <em>bị loại</em> vì "bên sau" là tương lai (leakage).</td></tr>
+      <tr id="g-residual"><td><strong>residual</strong></td><td>Phần dữ liệu mô hình trước chưa giải thích được (thực tế − dự đoán); mô hình sau học chính phần này.</td></tr>
+      <tr id="g-direct"><td><strong>direct forecasting</strong></td><td>Dự đoán cả 16 ngày một lúc, chỉ dùng lag ≥ 16 → không để sai số tích lũy (khác recursive: dự đoán từng ngày rồi dùng lại làm input).</td></tr>
+      <tr id="g-rolling"><td><strong>rolling window</strong></td><td>Cửa sổ trượt N ngày để tính thống kê (vd. trung bình trượt — rolling mean).</td></tr>
+      <tr id="g-granularity"><td><strong>granularity</strong></td><td>Độ "mịn" của mô hình: một mô hình chung cho tất cả, hay riêng từng family / store-family.</td></tr>
+      <tr id="g-hybrid"><td><strong>hybrid</strong></td><td>Kết hợp hai mô hình: backbone deterministic (Giai đoạn 2) + mô hình feature học trên residual (Giai đoạn 3).</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>
+  Quay lại <a href="{{ '/vi/' | relative_url }}">Tổng quan</a> hoặc bất kỳ giai đoạn nào qua
+  sidebar.
+</footer>
