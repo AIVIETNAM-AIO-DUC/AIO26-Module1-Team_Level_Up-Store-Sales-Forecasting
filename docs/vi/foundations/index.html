@@ -9,6 +9,7 @@ sections:
   - { id: data,    label: "Làm quen với dữ liệu" }
   - { id: rmsle,   label: "RMSLE (thử ngay)" }
   - { id: holdout, label: "Holdout trung thực" }
+  - { id: terms,   label: "Từ vựng" }
   - { id: rules,   label: "5 nguyên tắc" }
 ---
 
@@ -68,15 +69,6 @@ sections:
       <tr><td><code>sample_submission.csv</code></td><td class="num">28,512</td><td>id, sales — đúng định dạng output của ta</td></tr>
     </tbody>
   </table>
-  </div>
-  <div class="callout tip">
-    <span class="tag">Dùng được · onpromotion</span>
-    <p style="margin:.4em 0 0">Khác với transactions (<a href="{{ '/vi/stage-0/#trap-6' | relative_url }}">Cạm bẫy 6</a>),
-    số lượng khuyến mãi <strong>có</strong> được cung cấp cho test horizon<a href="{{ '/vi/glossary/' | relative_url }}#g-horizon" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
-    — khuyến mãi được lên kế hoạch trước — nên đây là một biến dự đoán mạnh <em>và</em> không bị
-    leakage<a href="{{ '/vi/glossary/' | relative_url }}#g-leakage" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>, ta đưa
-    thẳng vào (cùng ngày<a href="{{ '/vi/glossary/' | relative_url }}#g-sameday" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>,
-    không cần lag<a href="{{ '/vi/glossary/' | relative_url }}#g-lag" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>).</p>
   </div>
 </section>
 
@@ -210,40 +202,104 @@ sections:
     <p style="margin:.4em 0 0">16 ngày cuối chỉ bị giấu đi <em>trong lúc so sánh các mô
     hình</em>. Khi đã chọn được hướng tốt nhất, hãy fit lại trên <strong>toàn bộ</strong> dữ
     liệu huấn luyện (gồm cả 16 ngày đó) trước khi dự đoán <code>test.csv</code> thật — những
-    ngày gần đây nhất mang trend<a href="{{ '/vi/glossary/' | relative_url }}#g-trend" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> và seasonality<a href="{{ '/vi/glossary/' | relative_url }}#g-seasonality" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> tươi mới nhất.</p></div>
+    ngày gần đây nhất mang tín hiệu nhu cầu tươi mới nhất.</p></div>
   <p class="muted"><strong>Ở đâu:</strong> <code>src/validation.py :: train_holdout_split()</code>
   thực hiện việc cắt và assert đúng thứ tự.</p>
 </section>
 
+<section class="block" id="terms">
+  <div class="eyebrow">Nền tảng · từ vựng</div>
+  <h3>Năm thuật ngữ mà các nguyên tắc dưới đây dùng tới</h3>
+  <p>Các nguyên tắc bên dưới giả định bạn đã biết năm từ. Mỗi từ là một khái niệm time-series
+  chung, dùng được ở mọi bài toán có thứ tự thời gian; ví dụ luôn lấy từ chính bộ dữ liệu này để
+  giữ tính cụ thể.</p>
+  <div class="card">
+    <ul style="margin:0; padding-left:1.2em; list-style:none">
+      <li style="margin:.6em 0"><strong>Leakage.</strong> Dùng thông tin tại lúc huấn luyện mà mô
+      hình sẽ không có khi được yêu cầu dự đoán thật — mô hình "gian lận" bằng cách nhìn vào
+      tương lai. <span class="muted">Ví dụ: huấn luyện trên doanh số 16/8 để dự đoán 17/8 là
+      leakage; ngày 16/8 chưa biết khi ta nộp bài (cắt vào 15/8).</span></li>
+      <li style="margin:.6em 0"><strong>Lag.</strong> Một giá trị quá khứ của series được kéo lên
+      dòng hiện tại làm feature. <code>lag_7</code> của dòng hôm nay = giá trị của 7 ngày trước
+      trong cùng series. <span class="muted">Ví dụ: <code>df["sales"].shift(7)</code>, tính trên
+      từng (store, family).</span></li>
+      <li style="margin:.6em 0"><strong>Trend.</strong> Hướng thay đổi chậm và bền vững qua khoảng
+      thời gian dài (hàng tháng hay hàng năm). <span class="muted">Ví dụ: từ 2013 → 2017 tổng
+      doanh số của chuỗi này có xu hướng đi lên — độ dốc dài hạn, bỏ qua các dao động hàng
+      tuần.</span></li>
+      <li style="margin:.6em 0"><strong>Seasonality.</strong> Các chu kỳ lặp lại gắn với vị trí
+      trên lịch — hàng tuần (mỗi thứ trong tuần bán khác nhau), hàng năm (đỉnh tháng 12), v.v.
+      Thường được mô hình hóa bằng sin/cos Fourier hoặc one-hot day-of-week.
+      <span class="muted">Ví dụ: mọi Chủ Nhật trong bộ dữ liệu này đều bán nhiều hơn mọi thứ
+      Ba.</span></li>
+      <li style="margin:.6em 0"><strong>Direct forecasting.</strong> Dự đoán cả H ngày của horizon
+      trong một lần — mỗi bước horizon một mô hình, hoặc một mô hình multi-output — thay vì dự
+      đoán ngày 1, đưa output vào lại để dự đoán ngày 2 ("recursive"). Với direct, không output
+      nào của mô hình bị dùng làm input, nên sai số không bị nhân lên — đổi lại, mọi lag phải
+      ≥ H ngày. <span class="muted">Ở project này H = 16, nên lag nhỏ nhất dùng được là
+      16.</span></li>
+    </ul>
+  </div>
+</section>
+
 <section class="block" id="rules">
   <div class="eyebrow">Nền tảng · lan can bảo vệ</div>
-  <h3>Năm nguyên tắc giữ ta trung thực</h3>
-  <p>Mọi thứ trong phần Nền tảng cô đọng lại thành năm nguyên tắc — và chúng được <em>thực thi
-  trong code</em>, để sai sót báo lỗi to chứ không âm thầm phá điểm số.</p>
+  <h3>Năm nguyên tắc của dự báo time-series trung thực</h3>
+  <p>Mọi thứ ở trên cô đọng lại thành năm nguyên tắc. Mỗi nguyên tắc là một quy tắc chung khi làm
+  việc với dữ liệu có thứ tự thời gian; sidebar cho biết <em>project này</em> thực thi nó trong
+  code thế nào.</p>
   <div class="card">
     <ol style="margin:0; padding-left:1.2em">
-      <li style="margin:.5em 0"><strong>Không leakage.</strong> Mọi feature<a href="{{ '/vi/glossary/' | relative_url }}#g-feature" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> phải biết được tại
-      thời điểm dự đoán. Lag dùng đúng quá khứ; oil được forward-fill, không bao giờ
-      interpolation; transactions chỉ ở dạng lag.
-      <span class="muted">Bảo vệ: <code>assert_no_leak()</code>.</span></li>
-      <li style="margin:.5em 0"><strong>Gap-free trước khi tạo feature.</strong> Các feature
-      time-series đếm theo <em>dòng</em>, không phải theo ngày trên lịch. Nếu series có ngày bị
-      thiếu (ví dụ: cửa hàng đóng cửa ngày 25/12 nên không tồn tại dòng nào cho ngày đó), thì
-      "lùi 7 dòng" không còn đồng nghĩa với "lùi 7 ngày" nữa — lag "cùng thứ trong tuần trước"
-      sẽ trỏ vào sai ngày, sin/cos theo mùa lệch pha, âm thầm phá điểm số mà không hề báo lỗi.
-      Vì vậy bước reindex ở <a href="{{ '/vi/stage-0/#trap-1' | relative_url }}">Cạm bẫy 1</a>
-      (chèn các ngày thiếu với <code>sales = 0</code>) phải chạy <em>trước</em> mọi feature lag
-      hay seasonality, để khoảng cách giữa các dòng luôn đều một ngày.
-      <span class="muted">Bảo vệ: <code>assert_gapfree()</code>.</span></li>
-      <li style="margin:.5em 0"><strong>Lag phải vượt qua horizon (≥ 16 ngày).</strong> Ngày
-      cuối ta dự đoán (31/8) cách 16 ngày so với ngày dữ liệu thật cuối cùng (15/8). Ta dự đoán
-      cả 16 ngày một lúc (<em>direct forecasting</em>) với base lag là 16. Xem
-      <a href="{{ '/vi/stage-2/#laghorizon' | relative_url }}">phần đi sâu về lag horizon</a>.</li>
-      <li style="margin:.5em 0"><strong>Validation tôn trọng thời gian.</strong> Một holdout 16
-      ngày phản chiếu horizon thật; train chỉ trên dữ liệu cũ hơn; cấm K-fold ngẫu nhiên.</li>
-      <li style="margin:.5em 0"><strong>Xử lý metric nhất quán.</strong> RMSLE tính trên
-      <code>log1p</code>, dự đoán bị clip ≥ 0, áp dụng giống nhau cho mọi mô hình để điểm số có
-      thể so sánh được thực sự.</li>
+      <li style="margin:.7em 0"><strong>Không leakage.</strong> Mọi feature dùng tại lúc huấn
+      luyện phải biết được tại thời điểm dự đoán. Nếu một dòng về ngày 17/8 dùng bất kỳ giá trị
+      nào mà thế giới chưa biết vào ngày 15/8, mô hình đang gian lận.
+        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">Trong project này</span>
+          <p style="margin:.3em 0 0">Giá oil được forward-fill (không bao giờ interpolation — vì
+          interpolation sẽ kéo giá trị tương lai vào); transactions chỉ ở dạng lag (giá trị cùng
+          ngày chưa biết khi ta dự đoán); <code>src/validation.py :: assert_no_leak()</code> báo
+          lỗi nếu có feature nào nhìn trộm về tương lai.</p>
+        </div>
+      </li>
+      <li style="margin:.7em 0"><strong>Gap-free trước khi tạo feature.</strong> Các feature
+      time-series đếm theo <em>thứ tự dòng</em>, không phải theo ngày trên lịch. Phải reindex
+      mỗi series lên một lịch đầy đủ (theo ngày, theo giờ, hay bất kỳ grain nào của bạn)
+      <em>trước</em> khi tạo bất kỳ feature lag hay seasonality nào, nếu không "lùi 7 dòng" sẽ
+      âm thầm không còn nghĩa là "lùi 7 ngày" nữa.
+        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">Trong project này</span>
+          <p style="margin:.3em 0 0">Cửa hàng đóng cửa ngày 25/12 → mất dòng.
+          <code>reindex_series_gapfree()</code> chèn các dòng đó với <code>sales = 0</code> và
+          <code>was_closed = True</code>; <code>assert_gapfree()</code> báo lỗi nếu còn khoảng
+          trống. Walkthrough đầy đủ: <a href="{{ '/vi/stage-0/#trap-1' | relative_url }}">Cạm
+          bẫy 1</a>.</p>
+        </div>
+      </li>
+      <li style="margin:.7em 0"><strong>Lag phải vượt qua horizon.</strong> Trong direct
+      forecasting, mọi lag đưa vào mô hình phải ít nhất H bước tuổi, với H là độ dài horizon.
+      Lag ngắn hơn sẽ không biết được vào ngày ta dự đoán điểm xa nhất của H.
+        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">Trong project này</span>
+          <p style="margin:.3em 0 0">H = 16, nên <code>base_lag = 16</code>. Ngày cuối ta dự đoán
+          (31/8) cách 16 ngày so với ngày dữ liệu thật cuối cùng (15/8); feature lag-7 sẽ thiếu từ
+          ngày 22/8 trở đi. Xem <a href="{{ '/vi/stage-2/#laghorizon' | relative_url }}">phần đi
+          sâu về lag horizon</a>.</p>
+        </div>
+      </li>
+      <li style="margin:.7em 0"><strong>Validation tôn trọng thời gian.</strong> Dữ liệu validation
+      phải nằm chặt chẽ ở thời gian sau dữ liệu train. K-fold ngẫu nhiên cắt ngang trục thời gian
+      và để mô hình train trên tương lai của những ngày nó sắp "dự đoán".
+        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">Trong project này</span>
+          <p style="margin:.3em 0 0">Một holdout 16 ngày (31/7 → 15/8) phản chiếu horizon thật;
+          <code>train_holdout_split()</code> thực hiện cắt và assert đúng thứ tự.</p>
+        </div>
+      </li>
+      <li style="margin:.7em 0"><strong>Xử lý metric nhất quán.</strong> Tính metric giống hệt
+      nhau trên mọi mô hình và mọi dự đoán — cùng transform, cùng cách clip, cùng cách lấy trung
+      bình — nếu không điểm số sẽ ngừng so sánh được với nhau.
+        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">Trong project này</span>
+          <p style="margin:.3em 0 0">RMSLE tính trên <code>log1p</code>, dự đoán clip ≥ 0 trước
+          khi chấm; <code>src/validation.py :: rmsle()</code> và <code>clip_nonneg()</code> là
+          điểm vào duy nhất.</p>
+        </div>
+      </li>
     </ol>
   </div>
   <div class="callout key"><span class="tag">Bài học cấp cao</span>
