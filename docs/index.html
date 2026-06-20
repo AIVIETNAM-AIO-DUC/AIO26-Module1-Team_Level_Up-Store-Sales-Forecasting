@@ -414,6 +414,28 @@ rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></p
       ahead), so we feed it directly to the model without lagging. Started <strong>2014-04-01</strong>
       (all zeros before); <strong>20.4%</strong> of open rows have a promotion; mean sales rises
       steeply across promo buckets.</p>
+
+      <div class="callout key"><span class="tag">Why we "know" the future promo count</span>
+        <p style="margin:.4em 0 0">A common confusion: in <code>train.csv</code>, <code>onpromotion</code>
+        stops at 2017-08-15 — so where does the value for a horizon day come from? From the
+        <strong>other file</strong>. <code>onpromotion</code> lives in <em>two</em> files, and
+        <code>test.csv</code> already carries it for all 16 horizon days. The only column missing from
+        <code>test.csv</code> is <code>sales</code> (what we predict).</p>
+        <div class="scroll" style="margin-top:.6em">
+        <table>
+          <thead><tr><th></th><th><code>train.csv</code></th><th><code>test.csv</code> (the horizon)</th></tr></thead>
+          <tbody>
+            <tr><td>Dates</td><td>2013-01-01 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
+            <tr><td><code>onpromotion</code></td><td>✅ present</td><td>✅ <strong>present</strong> (0 nulls)</td></tr>
+            <tr><td><code>sales</code></td><td>✅ present</td><td>❌ absent → this is what we predict</td></tr>
+            <tr><td><code>transactions</code></td><td>✅ (separate file)</td><td>❌ <strong>no file</strong> → lag-only (Trap 6)</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p style="margin:.6em 0 0">So "same-day, no lag" isn't us peeking — Kaggle <em>hands us</em> the
+        future promotion schedule because a promotion is a decision made in advance. Contrast
+        <code>transactions</code>: it's an <em>outcome</em> of the day, ships no test file, and can
+        only ever be used lagged.</p></div>
       <div class="callout leak"><span class="tag">Don't size the lift from EDA</span>
         <p style="margin:.4em 0 0">The raw promo lift is doubly confounded — by <em>family</em> (big
         families promote <em>and</em> sell more) and by <em>time/trend</em> (promo rows are all

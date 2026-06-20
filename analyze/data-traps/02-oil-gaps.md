@@ -31,6 +31,16 @@ price forward into each gap. A single leading **back-fill** covers the very firs
 - **Interpolation is rejected**: it averages the value *before* and *after* a gap, and "after" is
   the future — using it to fill today's feature lets the model peek ahead.
 
+## Verify
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+print('oil null prices:', int(data.load_oil()['dcoilwtico'].isna().sum()))  # 43
+"
+```
+
 ## Where
 
 Oil features in `src/features.py`. (Note: the EDA showed oil's apparent sales effect is a

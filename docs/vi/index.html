@@ -43,6 +43,9 @@ permalink: /vi/
 
     <div class="grp">Giai đoạn 4 — Hybrid</div>
     <a href="#s4-hybrid" class="navlink">Hybrid &amp; submission</a>
+
+    <div class="grp">Tham khảo</div>
+    <a href="#glossary" class="navlink">Từ điển thuật ngữ</a>
   </nav>
 
   <main>
@@ -82,11 +85,11 @@ permalink: /vi/
       <p>Cho lịch sử nhiều năm (2013-01-01 → 2017-08-15), hãy dự đoán doanh số cho
       <strong>16 ngày tiếp theo</strong> (2017-08-16 → 2017-08-31) cho từng cửa hàng + nhóm sản
       phẩm. Khoảng thời gian cố định đó có một tên gọi mà ta sẽ dùng xuyên suốt:
-      <strong>horizon</strong> (= 16 ngày).</p>
+      <strong>horizon</strong><a href="#g-horizon" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (= 16 ngày).</p>
 
       <div class="callout key">
         <span class="tag">Từ khóa · series</span>
-        <p style="margin:.4em 0 0">Một <strong>series</strong> là lịch sử doanh số hàng ngày của
+        <p style="margin:.4em 0 0">Một <strong>series</strong><a href="#g-series" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> là lịch sử doanh số hàng ngày của
         <em>một nhóm sản phẩm tại một cửa hàng</em> — "thứ có quá khứ và tương lai." Gần như mọi
         thao tác đều diễn ra <em>trên từng series</em>, không bao giờ trộn lẫn giữa các series.</p>
       </div>
@@ -126,9 +129,11 @@ permalink: /vi/
       <div class="callout tip">
         <span class="tag">Dùng được · onpromotion</span>
         <p style="margin:.4em 0 0">Khác với transactions (Cạm bẫy 6), số lượng khuyến mãi
-        <strong>có</strong> được cung cấp cho test horizon — khuyến mãi được lên kế hoạch trước —
-        nên đây là một biến dự đoán mạnh <em>và</em> không bị leakage, ta đưa thẳng vào (cùng ngày,
-        không cần lag).</p>
+        <strong>có</strong> được cung cấp cho test horizon<a href="#g-horizon" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
+        — khuyến mãi được lên kế hoạch trước — nên đây là một biến dự đoán mạnh <em>và</em> không bị
+        leakage<a href="#g-leakage" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>, ta đưa
+        thẳng vào (cùng ngày<a href="#g-sameday" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>,
+        không cần lag<a href="#g-lag" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>).</p>
       </div>
     </section>
 
@@ -199,11 +204,11 @@ permalink: /vi/
       <p>Một mô hình luôn trông xuất sắc trên dữ liệu mà nó đã huấn luyện — nó đã thấy đáp án.
       Tín hiệu trung thực duy nhất là sai số trên dữ liệu mà nó <strong>không</strong> huấn luyện.
       Ta giữ riêng một phần dữ liệu của mình làm bảng điểm tức thì, không giới hạn: một
-      <strong>holdout</strong>.</p>
+      <strong>holdout</strong><a href="#g-holdout" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>.</p>
 
       <div class="callout leak">
         <span class="tag">Nguyên tắc time-series</span>
-        <p style="margin:.4em 0 0">K-fold ngẫu nhiên <strong>gian lận</strong> ở đây. Nếu validate
+        <p style="margin:.4em 0 0">K-fold<a href="#g-kfold" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> ngẫu nhiên <strong>gian lận</strong> ở đây. Nếu validate<a href="#g-validation" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
         trên một ngày <em>ở giữa</em> lịch sử thì mô hình huấn luyện trên những ngày đến <em>sau</em>
         ngày đó — nó nhìn thấy tương lai so với cái nó cần dự đoán. Phải cắt một nhát sạch theo
         <em>thời gian</em>.</p>
@@ -232,7 +237,7 @@ permalink: /vi/
         <p style="margin:.4em 0 0">16 ngày cuối chỉ bị giấu đi <em>trong lúc so sánh các mô
         hình</em>. Khi đã chọn được hướng tốt nhất, hãy fit lại trên <strong>toàn bộ</strong> dữ
         liệu huấn luyện (gồm cả 16 ngày đó) trước khi dự đoán <code>test.csv</code> thật — những
-        ngày gần đây nhất mang trend và seasonality tươi mới nhất.</p></div>
+        ngày gần đây nhất mang trend<a href="#g-trend" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> và seasonality<a href="#g-seasonality" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> tươi mới nhất.</p></div>
       <p class="muted"><strong>Ở đâu:</strong> <code>src/validation.py :: train_holdout_split()</code>
       thực hiện việc cắt và assert đúng thứ tự.</p>
     </section>
@@ -245,7 +250,7 @@ permalink: /vi/
       trong code</em>, để sai sót báo lỗi to chứ không âm thầm phá điểm số.</p>
       <div class="card">
         <ol style="margin:0; padding-left:1.2em">
-          <li style="margin:.5em 0"><strong>Không leakage.</strong> Mọi feature phải biết được tại
+          <li style="margin:.5em 0"><strong>Không leakage.</strong> Mọi feature<a href="#g-feature" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> phải biết được tại
           thời điểm dự đoán. Lag dùng đúng quá khứ; oil được forward-fill, không bao giờ
           interpolation; transactions chỉ ở dạng lag.
           <span class="muted">Bảo vệ: <code>assert_no_leak()</code>.</span></li>
@@ -276,7 +281,7 @@ permalink: /vi/
     <!-- ============ EDA OVERVIEW ============ -->
     <section class="block" id="eda-overview">
       <div class="eyebrow">Giai đoạn 0 — EDA · tổng quan</div>
-      <h3>Toàn vẹn dữ liệu &amp; reindex gap-free</h3>
+      <h3>Toàn vẹn dữ liệu &amp; reindex<a href="#g-reindex" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> gap-free</h3>
       <p>Giai đoạn 0 là bước thực sự đầu tiên của người học: <em>nhìn</em>, đếm, và kiểm tra xem dữ
       liệu có đúng như ta nghĩ trước khi xây bất cứ thứ gì. 7 file CSV load sạch sẽ; các con số
       tiêu đề xác nhận <strong>54 cửa hàng × 33 nhóm = 1,782 series</strong> trên 1,688 ngày.</p>
@@ -299,7 +304,7 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
     <section class="block" id="eda-trend">
       <div class="eyebrow">Giai đoạn 0 — EDA · trend</div>
       <h3>Sự dịch chuyển chậm qua ~4,6 năm</h3>
-      <p>Điều đầu tiên ta nhận thấy: doanh số không phải stationary — chúng đang tăng.</p>
+      <p>Điều đầu tiên ta nhận thấy: doanh số không phải stationary<a href="#g-stationary" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> — chúng đang tăng.</p>
       <ul>
         <li><strong>Trung bình tổng theo ngày tăng gấp đôi</strong>: ~<strong>386k</strong> năm 2013
         → ~<strong>856k</strong> năm 2017.</li>
@@ -343,7 +348,7 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
       liệu. Dù thiếu năm có doanh số cao nhất, tháng 12 vẫn dẫn đầu profile — sức mạnh của đợt tăng
       vọt lễ là vậy đấy.</p>
 
-      <h4 id="periodogram">Khám phá: periodogram (một "lăng kính" cho time series)</h4>
+      <h4 id="periodogram">Khám phá: periodogram<a href="#g-periodogram" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (một "lăng kính" cho time series)</h4>
       <p>Ta không cần <em>giả định</em> dữ liệu có chu kỳ tuần — ta có thể để dữ liệu
       <strong>tự chỉ ra</strong>. Một <strong>periodogram</strong> tách đường tổng theo ngày thành
       các sóng sin/cos thuần với mọi chu kỳ có thể và đo mức độ biến thiên nằm ở mỗi cycle length.
@@ -423,8 +428,30 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
       hoạch trước), nên ta đưa thẳng vào mô hình không cần lag. Bắt đầu từ
       <strong>2014-04-01</strong> (toàn 0 trước đó); <strong>20,4%</strong> dòng mở cửa có khuyến
       mãi; doanh số trung bình tăng mạnh qua các nhóm promo.</p>
+
+      <div class="callout key"><span class="tag">Vì sao ta "biết" số khuyến mãi tương lai</span>
+        <p style="margin:.4em 0 0">Một chỗ hay nhầm: trong <code>train.csv</code>,
+        <code>onpromotion</code> dừng ở 2017-08-15 — vậy giá trị cho ngày trong horizon lấy từ đâu?
+        Từ <strong>file còn lại</strong>. <code>onpromotion</code> nằm ở <em>hai</em> file, và
+        <code>test.csv</code> đã chứa sẵn nó cho cả 16 ngày horizon. Cột duy nhất thiếu trong
+        <code>test.csv</code> là <code>sales</code> (thứ ta dự đoán).</p>
+        <div class="scroll" style="margin-top:.6em">
+        <table>
+          <thead><tr><th></th><th><code>train.csv</code></th><th><code>test.csv</code> (horizon)</th></tr></thead>
+          <tbody>
+            <tr><td>Ngày</td><td>2013-01-01 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
+            <tr><td><code>onpromotion</code></td><td>✅ có</td><td>✅ <strong>có</strong> (0 null)</td></tr>
+            <tr><td><code>sales</code></td><td>✅ có</td><td>❌ không → đây là thứ ta dự đoán</td></tr>
+            <tr><td><code>transactions</code></td><td>✅ (file riêng)</td><td>❌ <strong>không có file</strong> → chỉ dùng lag (Cạm bẫy 6)</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p style="margin:.6em 0 0">Nên "cùng ngày, không lag" không phải ta lén nhìn tương lai —
+        Kaggle <em>đưa sẵn</em> lịch khuyến mãi tương lai cho ta, vì khuyến mãi là quyết định lên kế
+        hoạch trước. Ngược lại <code>transactions</code>: nó là <em>kết quả</em> của ngày hôm đó,
+        không có file test, nên chỉ có thể dùng dạng lag.</p></div>
       <div class="callout leak"><span class="tag">Đừng đo độ lift từ EDA</span>
-        <p style="margin:.4em 0 0">Lift thô của khuyến mãi bị confound kép — bởi <em>family</em>
+        <p style="margin:.4em 0 0">Lift<a href="#g-lift" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> thô của khuyến mãi bị confound<a href="#g-confound" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> kép — bởi <em>family</em>
         (family lớn vừa khuyến mãi <em>vừa</em> bán nhiều) và bởi <em>time/trend</em> (dòng promo
         đều thuộc 2014-04+, giai đoạn trend cao hơn). Để mô hình tự đo magnitude; nhớ rằng nó
         <strong>không có tín hiệu trước 2014–đầu 2014</strong>.</p></div>
@@ -432,13 +459,13 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
       <h4>Oil — gap-fill trước, đánh giá sau</h4>
       <p>1,218 dòng ngày giao dịch; <strong>43</strong> giá trống (gồm cả ngày đầu tiên);
       <strong>486</strong> ngày lịch bị thiếu (cuối tuần/lễ) = <strong>529</strong> lỗ hổng trên
-      lịch ngày → <strong>0</strong> sau forward-fill (+ một back-fill cho ô trống dẫn 2013-01-01).
-      Forward-fill chỉ nhìn về quá khứ (không leakage); interpolation bị loại vì nó lấy trung bình
+      lịch ngày → <strong>0</strong> sau forward-fill<a href="#g-forwardfill" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (+ một back-fill cho ô trống dẫn 2013-01-01).
+      Forward-fill chỉ nhìn về quá khứ (không leakage); interpolation<a href="#g-interpolation" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> bị loại vì nó lấy trung bình
       với giá trị <em>sau</em> khoảng trống — đó là tương lai.</p>
 
       <h4>Oil là ứng viên, không phải driver đã chứng minh</h4>
-      <p>Giá oil sụp đổ (2014 avg ≈ 93 → 2016 avg ≈ 43) trong khi sales tăng, nên correlation thô
-      trông kịch tính ở <strong>−0,62</strong>. Sau khi detrend (% thay đổi theo tháng) nó
+      <p>Giá oil sụp đổ (2014 avg ≈ 93 → 2016 avg ≈ 43) trong khi sales tăng, nên correlation<a href="#g-correlation" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> thô
+      trông kịch tính ở <strong>−0,62</strong>. Sau khi detrend<a href="#g-detrend" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> (% thay đổi theo tháng) nó
       <strong>tụt xuống ≈ 0,05 ≈ 0</strong>. "Mối quan hệ" mạnh kia là một artifact của trend —
       cùng một cái bẫy như việc gán một mẫu thường ngày cho một sự kiện đặc biệt. Oil vẫn có thể
       có ý nghĩa theo từng region/family hoặc dạng lag — holdout sẽ quyết định.</p>
@@ -452,7 +479,7 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
     <section class="block" id="eda-anomalies">
       <div class="eyebrow">Giai đoạn 0 — EDA · sự kiện một lần</div>
       <h3>Động đất 2016 — giải phẫu một bất thường</h3>
-      <p>Một trận động đất 7,8 độ xảy ra vào <strong>2016-04-16</strong>. So với baseline 8 tuần
+      <p>Một trận động đất 7,8 độ xảy ra vào <strong>2016-04-16</strong>. So với baseline<a href="#g-baseline" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> 8 tuần
       trước động đất (≈ 764,910):</p>
       <ul>
         <li><strong>Tuần +0</strong> (tuần va chạm) nhảy lên ≈ <strong>1,41×</strong> do mua sắm
@@ -639,7 +666,7 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
       <h3>Baseline dự báo: seasonal-naive &amp; near-zero</h3>
       <p>Cách dự đoán đơn giản nhất có thể — không huấn luyện, không toán. Việc của Giai đoạn 1 là
       chấm các baseline này trên holdout và <strong>ghi lại con số cần vượt qua</strong>. Chúng
-      cũng đóng vai trò <strong>quy tắc fallback</strong> cho các series quá thưa để mô hình hóa
+      cũng đóng vai trò <strong>quy tắc fallback</strong><a href="#g-fallback" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> cho các series quá thưa để mô hình hóa
       (Cạm bẫy 5). Chúng dự đoán <strong>16 ngày tương lai</strong>; chúng <em>không</em> thay đổi
       dữ liệu quá khứ.</p>
 
@@ -709,7 +736,7 @@ dự đoán Thứ Ba tới   = doanh số Thứ Ba tuần trước
     <!-- ============ TREND + FOURIER ============ -->
     <section class="block" id="s2-fourier">
       <div class="eyebrow">Giai đoạn 2 · trend + seasonality (feature chỉ-theo-ngày)</div>
-      <h3>Backbone deterministic</h3>
+      <h3>Backbone deterministic<a href="#g-deterministic" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a></h3>
       <p>Giai đoạn 2 fit một mô hình mà feature chỉ phụ thuộc <em>vào ngày</em>: một trend (sự dịch
       chuyển chậm, đã được Giai đoạn 0 xác nhận) cộng với các term Fourier theo mùa (weekly +
       annual, được biện minh bởi periodogram và profile tháng). "Deterministic" nghĩa là tính được
@@ -952,13 +979,13 @@ dự đoán Thứ Ba tới   = doanh số Thứ Ba tuần trước
       <h4>Ý tưởng hybrid</h4>
       <p>Backbone deterministic của Giai đoạn 2 bắt sự dịch chuyển chậm và nhịp lịch một cách sạch
       sẽ. Feature model của Giai đoạn 3 bắt các điều chỉnh ngắn hạn — mức gần đây, khuyến mãi, cửa
-      sổ động đất. Một <strong>hybrid</strong> fit Giai đoạn 2 trước, lấy residual của nó (cái gì
+      sổ động đất. Một <strong>hybrid</strong><a href="#g-hybrid" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> fit Giai đoạn 2 trước, lấy residual<a href="#g-residual" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> của nó (cái gì
       còn lại chưa giải thích được), rồi để Giai đoạn 3 dự đoán những residual đó. Hai chuyên
       gia, mỗi người làm việc mình giỏi.</p>
 
       <h4>Quyết định granularity</h4>
       <p>Một mô hình cho cả 1,782 series? Một mô hình cho mỗi family? Một cho mỗi store-family?
-      Giai đoạn 4 chọn mức bằng RMSLE trên holdout — granularity càng mịn càng bắt được pattern
+      Giai đoạn 4 chọn mức bằng RMSLE trên holdout — granularity<a href="#g-granularity" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> càng mịn càng bắt được pattern
       cục bộ nhưng đói dữ liệu; càng thô càng gom được nhiều dữ liệu nhưng làm nhòe pattern. Năm
       nguyên tắc áp dụng cho mọi lựa chọn.</p>
 
@@ -985,6 +1012,78 @@ dự đoán Thứ Ba tới   = doanh số Thứ Ba tuần trước
         <p style="margin:.4em 0 0">load → reindex (gap-free) → split (holdout) → Giai đoạn 1
         (sàn baseline) → Giai đoạn 2 (deterministic) → Giai đoạn 3 (features trên residual) →
         Giai đoạn 4 (hybrid + ghép fallback) → refit trên toàn bộ → ghi submission.</p></div>
+    </section>
+
+    <!-- =====================================================================
+         TỪ ĐIỂN THUẬT NGỮ
+         ===================================================================== -->
+
+    <section class="block" id="glossary">
+      <div class="eyebrow">Tham khảo · giải nghĩa nhanh</div>
+      <h3>Từ điển thuật ngữ</h3>
+      <p>Tài liệu giữ nguyên các thuật ngữ tiếng Anh thông dụng trong ML/time-series (để bạn quen
+      mặt chữ khi đọc tài liệu khác). Bảng dưới giải nghĩa ngắn gọn từng từ. Mỗi thuật ngữ trong bài
+      có biểu tượng <a href="#glossary">ⓘ</a> dẫn xuống đây.</p>
+
+      <h4>Nền tảng</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
+        <tbody>
+          <tr id="g-series"><td><strong>series</strong></td><td>Lịch sử doanh số hàng ngày của <em>một nhóm sản phẩm tại một cửa hàng</em> — đơn vị có "quá khứ và tương lai" mà ta dự đoán. Có 54 × 33 = 1,782 series.</td></tr>
+          <tr id="g-horizon"><td><strong>horizon / test horizon</strong></td><td>16 ngày tương lai cần dự đoán (2017-08-16 → 31).</td></tr>
+          <tr id="g-holdout"><td><strong>holdout</strong></td><td>Phần dữ liệu cắt ra từ <code>train.csv</code>, giấu đáp án đi, để tự chấm mô hình tại máy trước khi nộp.</td></tr>
+          <tr id="g-leakage"><td><strong>leakage</strong></td><td>Rò rỉ — dùng thông tin mà <em>thực tế chưa có</em> ở thời điểm dự đoán; làm điểm validation đẹp giả tạo rồi sụp khi chạy thật.</td></tr>
+          <tr id="g-lag"><td><strong>lag</strong></td><td>Dùng giá trị của <em>ngày trước đó</em> (trễ N ngày) — thứ chắc chắn đã biết tại thời điểm dự đoán.</td></tr>
+          <tr id="g-sameday"><td><strong>same-day / cùng ngày</strong></td><td>Dùng giá trị của <em>chính</em> ngày dự đoán; chỉ an toàn khi ta thực sự biết trước (như <code>onpromotion</code>).</td></tr>
+          <tr id="g-baseline"><td><strong>baseline</strong></td><td><strong>Hai nghĩa:</strong> (1) mức tham chiếu để so sánh (vd. doanh số trung bình trước động đất); (2) mô hình "ngây thơ" Giai đoạn 1 (seasonal-naive / near-zero) làm sàn điểm mọi mô hình phải vượt.</td></tr>
+          <tr id="g-fallback"><td><strong>fallback</strong></td><td>Phương án dự phòng đơn giản cho các series quá thưa để mô hình hóa (rơi về seasonal-naive / near-zero).</td></tr>
+          <tr id="g-feature"><td><strong>feature</strong></td><td>Biến đầu vào của mô hình (vd. lag, ngày lễ, khuyến mãi). <em>feature engineering</em> = công việc tạo/biến đổi các biến này.</td></tr>
+          <tr id="g-metric"><td><strong>metric</strong></td><td>Thước đo chấm điểm mô hình — ở đây là RMSLE.</td></tr>
+          <tr id="g-validation"><td><strong>validation / validate</strong></td><td>Kiểm định mô hình trên dữ liệu nó <em>chưa thấy</em> (vd. holdout) để ước lượng chất lượng thật.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4>Thống kê &amp; EDA</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
+        <tbody>
+          <tr id="g-trend"><td><strong>trend</strong></td><td>Xu hướng dịch chuyển dài hạn của chuỗi (ở đây doanh số tăng dần qua các năm).</td></tr>
+          <tr id="g-seasonality"><td><strong>seasonality</strong></td><td>Nhịp lặp lại theo lịch (theo tuần, theo năm).</td></tr>
+          <tr id="g-stationary"><td><strong>stationary</strong></td><td>Chuỗi có thống kê (trung bình, phương sai) ổn định theo thời gian. Doanh số ở đây <em>không</em> stationary vì đang tăng.</td></tr>
+          <tr id="g-correlation"><td><strong>correlation</strong></td><td>Hệ số tương quan: đo hai đại lượng cùng lên/xuống ra sao (từ −1 đến 1). Tương quan cao <em>không</em> đồng nghĩa nhân quả.</td></tr>
+          <tr id="g-confound"><td><strong>confound</strong></td><td>Biến gây nhiễu — một yếu tố thứ ba khiến quan hệ quan sát được bị hiểu sai (vd. family lớn vừa khuyến mãi <em>vừa</em> bán nhiều).</td></tr>
+          <tr id="g-detrend"><td><strong>detrend</strong></td><td>Khử thành phần xu hướng trước khi xét quan hệ, để tránh "tương quan giả" do hai bên cùng tăng theo thời gian.</td></tr>
+          <tr id="g-lift"><td><strong>lift</strong></td><td>Mức tăng so với ngày thường, thường tính bằng lần (vd. 1,24× = cao hơn 24%).</td></tr>
+          <tr id="g-spike"><td><strong>spike</strong></td><td>Cú vọt / đỉnh nhọn đột ngột trong chuỗi.</td></tr>
+          <tr id="g-periodogram"><td><strong>periodogram</strong></td><td>"Lăng kính" tách chuỗi thành các sóng chu kỳ, cho thấy chu kỳ nào mạnh (spike cao = nhịp lặp mạnh).</td></tr>
+          <tr id="g-fft"><td><strong>FFT</strong></td><td>Thuật toán tách tín hiệu thành các sóng tần số — "cỗ máy tìm chu kỳ" đứng sau periodogram.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h4>Mô hình hóa</h4>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
+        <tbody>
+          <tr id="g-deterministic"><td><strong>deterministic</strong></td><td>Feature tính được cho <em>bất kỳ</em> ngày nào chỉ từ ngày tháng (trend + Fourier) — hoàn hảo cho dự báo vì ta luôn biết ngày.</td></tr>
+          <tr id="g-kfold"><td><strong>K-fold</strong></td><td>Chia dữ liệu ngẫu nhiên thành k phần để kiểm định — <strong>SAI</strong> cho time-series vì làm mô hình "nhìn thấy" tương lai. Ta dùng holdout theo thời gian thay thế.</td></tr>
+          <tr id="g-reindex"><td><strong>reindex</strong></td><td>Dựng lại chỉ mục ngày để mỗi series có đủ mọi ngày trong lịch (lấp các ngày đóng cửa bằng sales = 0).</td></tr>
+          <tr id="g-forwardfill"><td><strong>forward-fill</strong></td><td>Lấp ô trống bằng giá trị đã biết <em>gần nhất phía trước</em> (chỉ nhìn quá khứ → không leakage).</td></tr>
+          <tr id="g-interpolation"><td><strong>interpolation</strong></td><td>Lấp ô trống bằng trung bình hai bên — <em>bị loại</em> vì "bên sau" là tương lai (leakage).</td></tr>
+          <tr id="g-residual"><td><strong>residual</strong></td><td>Phần dữ liệu mô hình trước chưa giải thích được (thực tế − dự đoán); mô hình sau học chính phần này.</td></tr>
+          <tr id="g-direct"><td><strong>direct forecasting</strong></td><td>Dự đoán cả 16 ngày một lúc, chỉ dùng lag ≥ 16 → không để sai số tích lũy (khác recursive: dự đoán từng ngày rồi dùng lại làm input).</td></tr>
+          <tr id="g-rolling"><td><strong>rolling window</strong></td><td>Cửa sổ trượt N ngày để tính thống kê (vd. trung bình trượt — rolling mean).</td></tr>
+          <tr id="g-granularity"><td><strong>granularity</strong></td><td>Độ "mịn" của mô hình: một mô hình chung cho tất cả, hay riêng từng family / store-family.</td></tr>
+          <tr id="g-hybrid"><td><strong>hybrid</strong></td><td>Kết hợp hai mô hình: backbone deterministic (Giai đoạn 2) + mô hình feature học trên residual (Giai đoạn 3).</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="muted">Định nghĩa đầy đủ cho mỗi khái niệm nằm trong <code>analyze/concepts/*</code> và
+      <code>analyze/eda/*</code> — đây chỉ là tra cứu nhanh.</p>
     </section>
 
     <footer>

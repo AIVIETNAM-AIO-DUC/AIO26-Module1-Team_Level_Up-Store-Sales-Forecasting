@@ -32,6 +32,20 @@ Compute an **effective holiday calendar**:
 - scope each holiday by locale — **National** → all stores; **Regional** → stores in that `state`;
   **Local** → stores in that `city`.
 
+## Verify
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+h = data.load_holidays()
+print('total rows     :', len(h))                              # 350
+print('transferred    :', int(h['transferred'].sum()))         # 12
+print('Work Day rows  :', int((h['type'] == 'Work Day').sum())) # 5
+print(h['locale'].value_counts().to_dict())                    # National/Regional/Local breakdown
+"
+```
+
 ## Where
 
 Holiday features in `src/features.py`. The payday signal (a related calendar effect) is best
