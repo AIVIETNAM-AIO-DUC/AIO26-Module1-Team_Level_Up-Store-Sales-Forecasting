@@ -27,24 +27,20 @@ real CSVs with `uv run`.
 
 ## Appendix A — Reproduce the numbers yourself
 
-Every figure in these docs is reproducible inside the uv-managed environment:
+Every figure in these docs is reproducible inside the uv-managed environment. First, a smoke
+test that confirms the loaders work:
 
 ```bash
-# Confirm the closed-day gaps and the reindex fix (Trap 1)
 uv run python -c "
 import sys; sys.path.insert(0,'.')
 from src import data
-t = data.load_train(); r = data.reindex_series_gapfree(t)
-print('inserted closed-days:', int(r['was_closed'].sum()))   # 7128
-"
-
-# Confirm the oil blanks (Trap 2)
-uv run python -c "
-import sys; sys.path.insert(0,'.')
-from src import data
-print('oil null prices:', int(data.load_oil()['dcoilwtico'].isna().sum()))  # 43
+print('train shape:', data.load_train().shape)   # (3000888, 6)
 "
 ```
+
+Each **trap and EDA page** carries its own `## Verify` block for the numbers it claims — open
+the file where the number first appears (e.g. `data-traps/01-…md` for the 7,128 closed-day
+inserts, `data-traps/02-…md` for the 43 oil blanks). That keeps the proof next to the claim.
 
 The exploratory notebook `notebooks/01_eda.ipynb` runs the full analysis end-to-end (execute it
 with `uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01_eda.ipynb`).

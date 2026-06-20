@@ -26,6 +26,20 @@ Use transactions **only as a lagged feature** (e.g. transactions 7+ days ago, wh
 prediction time). Contrast `onpromotion` — same dataset, but provided for the horizon, so it's
 used same-day (see `../eda/05-promotions-oil.md`).
 
+## Verify
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+tr = data.load_transactions()
+te = data.load_test()
+print('transactions ends:', tr['date'].max())   # 2017-08-15
+print('test horizon ends:', te['date'].max())   # 2017-08-31
+print('covers horizon?  :', 'yes' if tr['date'].max() >= te['date'].max() else 'NO — past-only')
+"
+```
+
 ## Where
 
 Lag features in `src/features.py`.

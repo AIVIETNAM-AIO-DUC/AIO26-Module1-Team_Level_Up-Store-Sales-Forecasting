@@ -58,6 +58,17 @@ rows inserted   : 7,128        ← 4 per series
 - **4 per series** because only the 2013–2016 Christmases fall inside the window (2017's is past
   the train end, 2012's is before the start).
 
+## Verify
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+t = data.load_train(); r = data.reindex_series_gapfree(t)
+print('inserted closed-days:', int(r['was_closed'].sum()))   # 7128
+"
+```
+
 ## Where
 
 `src/data.py :: reindex_series_gapfree()`, proven correct by

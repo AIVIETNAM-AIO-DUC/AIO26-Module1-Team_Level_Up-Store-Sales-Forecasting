@@ -25,6 +25,21 @@ always gets a sensible value. A rule-based gate (chosen by *us*, e.g. "fewer tha
 predictions nor mislead the model. The mechanics — what each rule predicts, and the
 exclude-before-training wiring — are in [`../concepts/baselines.md`](../concepts/baselines.md).
 
+## Verify
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+t = data.load_train()
+totals = t.groupby(['store_nbr','family'])['sales'].sum()
+nonzero_days = (t['sales'] > 0).groupby([t['store_nbr'], t['family']]).sum()
+print('total (store,family) pairs :', int(len(totals)))                  # 1782
+print('pairs with zero total sales:', int((totals == 0).sum()))          # the all-zero extreme
+print('pairs with < 30 non-zero days:', int((nonzero_days < 30).sum()))  # the thin tail
+"
+```
+
 ## Where
 
 The fallback path in `src/models.py`.

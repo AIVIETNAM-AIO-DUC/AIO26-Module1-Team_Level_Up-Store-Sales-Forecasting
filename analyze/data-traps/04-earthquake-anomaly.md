@@ -26,6 +26,18 @@ Add a binary (or decaying) **earthquake-window flag** covering a deliberately ge
 delete those rows — that would punch a hole back into the gap-free index built in
 [`01-missing-calendar-days.md`](01-missing-calendar-days.md).
 
+## Verify
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+from src import data
+h = data.load_holidays()
+mask = h['description'].fillna('').str.contains('Terremoto')
+print(h[mask][['date','type','locale','description']].head())  # the aftermath Event rows
+"
+```
+
 ## Where
 
 Calendar features in `src/features.py`. (Bonus: the holidays file itself marks the aftermath with

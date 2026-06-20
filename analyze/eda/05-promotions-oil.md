@@ -13,6 +13,20 @@ seeded below.
   (same dataset, *not* given for the horizon → lag-only). Started **2014-04-01** (all zeros
   before); **20.4%** of open rows have a promotion; mean sales rises steeply across promo
   buckets.
+  - **Where the "future" value comes from (the common confusion).** In `train.csv`,
+    `onpromotion` stops at 2017-08-15 — so it looks like we don't have it for the horizon. But
+    `onpromotion` lives in **two files**, and `test.csv` already carries it for all 16 horizon
+    days (2017-08-16 → 2017-08-31). The *only* column missing from `test.csv` is `sales` (the
+    target). So "same-day, no lag" is not peeking: Kaggle hands us the future promotion schedule
+    because a promotion is a decision made in advance. `transactions`, by contrast, is an
+    *outcome* of the day and ships **no test file** → it can only ever be lagged
+    (see [`../data-traps/06-transactions-past-only.md`](../data-traps/06-transactions-past-only.md)).
+
+    | column | `train.csv` (→2017-08-15) | `test.csv` (2017-08-16→31) |
+    |---|---|---|
+    | `onpromotion` | ✅ present | ✅ **present** (0 nulls) → used same-day |
+    | `sales` | ✅ present | ❌ absent → this is the target |
+    | `transactions` | ✅ (separate file) | ❌ no file → lag-only |
 - **…but the promo lift can't be sized in EDA.** It's doubly confounded — by **family**
   (big families promote *and* sell more) and by **time/trend** (promo rows are all 2014-04+, the
   higher-trend period). Leave the magnitude to the model; note it has **no signal for
@@ -29,5 +43,3 @@ seeded below.
 
 **Related:** `../data-traps/02-oil-gaps.md` · `../data-traps/06-transactions-past-only.md` ·
 [../concepts/leakage.md](../concepts/leakage.md)
-
-**Related:** `data-traps/02-oil-gaps.md` · [../concepts/leakage.md](../concepts/leakage.md)
