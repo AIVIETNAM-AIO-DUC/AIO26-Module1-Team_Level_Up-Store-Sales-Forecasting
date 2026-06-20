@@ -236,10 +236,33 @@ rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></p
       those dates have <em>no row at all</em>. They're absent, not recorded as a zero.
       Series <code>store=1, AUTOMOTIVE</code> has 1,684 rows over a 1,688-day span → 4 missing
       days, all Christmases.</p>
-      <p><strong>Why it quietly hurts:</strong> time-series features count <em>rows</em>. After a
-      gap, "7 rows back" is no longer "7 days back" — your "same weekday last week" lag points at
-      the wrong day, and seasonal sine/cosine terms slide out of phase. Nothing errors; the model
-      just gets worse.</p>
+      <p><strong>Why it quietly hurts:</strong> time-series features locate "the past" by
+      <em>row position</em> in the DataFrame, not by calendar date.
+      <code>df["sales"].shift(7)</code> simply means "take the value of the row 7 positions
+      back" — it never looks at the <code>date</code> column. The two only agree when no day
+      is missing.</p>
+      <p>Concrete example, series <code>store=1, AUTOMOTIVE</code> around Christmas 2016:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th class="num">index</th><th>date</th><th class="num">sales</th></tr></thead>
+        <tbody>
+          <tr><td class="num">100</td><td>Dec 20</td><td class="num">5</td></tr>
+          <tr><td class="num">101</td><td>Dec 21</td><td class="num">6</td></tr>
+          <tr><td class="num">102</td><td>Dec 22</td><td class="num">4</td></tr>
+          <tr><td class="num">103</td><td>Dec 23</td><td class="num">7</td></tr>
+          <tr><td class="num">104</td><td>Dec 24</td><td class="num">8</td></tr>
+          <tr><td class="num">—</td><td><em>Dec 25 (no row — store closed)</em></td><td class="num">—</td></tr>
+          <tr><td class="num">105</td><td>Dec 26</td><td class="num">5</td></tr>
+          <tr><td class="num">106</td><td>Dec 27</td><td class="num">6</td></tr>
+          <tr><td class="num">107</td><td>Dec 28</td><td class="num">9</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>At row <code>index=107</code> (Dec 28), <code>shift(7)</code> grabs
+      <code>index=100</code> → <strong>Dec 20</strong>. But "7 days before Dec 28" should be
+      <strong>Dec 21</strong>. Off by one day. The lag that was supposed to be "last
+      Wednesday" is now "last Tuesday," and seasonal sine/cosine terms drift by the same
+      amount. Nothing errors; the model just gets worse.</p>
       <p><strong>The fix:</strong> rebuild each series onto a complete daily calendar and fill the
       missing days with <code>sales = 0</code> (the store sold nothing — which is <em>true</em>,
       and keeps the row spacing regular). Tag each inserted row <code>was_closed = True</code> so

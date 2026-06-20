@@ -19,14 +19,35 @@ in `train.csv`. They are *absent*, not recorded as a zero.
 
 ## Why it quietly hurts
 
-Time-series features count **rows**, assuming each row is the next day:
+Time-series features locate "the past" by **row position** in the DataFrame, not by calendar
+date. `df["sales"].shift(7)` simply means "take the value of the row 7 positions back" — it
+never looks at the `date` column. Row-counting and day-counting only agree when no day is
+missing.
 
-- A **lag** like `shift(7)` means "go back 7 rows." After a gap, "7 rows back" is no longer "7
-  days back" — your "same weekday last week" feature silently points at the wrong day.
-- **Seasonality (Fourier) terms** assume a regular daily frequency; a hole slides the weekly and
-  yearly waves out of phase, so the pattern lands on the wrong weekday. (The exact phase shift,
-  in numbers, is worked through in
-  [../concepts/seasonality-fourier.md](../concepts/seasonality-fourier.md).)
+### A concrete example
+
+Series `store=1, AUTOMOTIVE` around Christmas 2016 (store closes Dec 25):
+
+| index | date                       | sales |
+|------:|----------------------------|------:|
+| 100   | Dec 20                     | 5     |
+| 101   | Dec 21                     | 6     |
+| 102   | Dec 22                     | 4     |
+| 103   | Dec 23                     | 7     |
+| 104   | Dec 24                     | 8     |
+| —     | *Dec 25 (no row — closed)* | —     |
+| 105   | Dec 26                     | 5     |
+| 106   | Dec 27                     | 6     |
+| 107   | Dec 28                     | 9     |
+
+At row `index=107` (Dec 28), `shift(7)` grabs `index=100` → **Dec 20**. But "7 days before
+Dec 28" should be **Dec 21**. Off by one day. The lag that was supposed to be "last Wednesday"
+is now "last Tuesday."
+
+The same shift breaks **seasonality (Fourier) terms**, which assume a regular daily frequency:
+a hole slides the weekly and yearly waves out of phase, so the pattern lands on the wrong
+weekday. (The exact phase shift, in numbers, is worked through in
+[../concepts/seasonality-fourier.md](../concepts/seasonality-fourier.md).)
 
 Nothing errors — you just get a worse model and no idea why. This is the canonical *silent trap*.
 

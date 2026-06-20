@@ -259,10 +259,33 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
       25/12 — nên những ngày đó <em>không có dòng nào</em>. Chúng bị vắng mặt, chứ không phải
       được ghi là số 0. Series <code>store=1, AUTOMOTIVE</code> có 1,684 dòng trên khoảng 1,688
       ngày → thiếu 4 ngày, tất cả đều là Giáng sinh.</p>
-      <p><strong>Tại sao nó âm thầm gây hại:</strong> feature time-series đếm theo <em>dòng</em>.
-      Sau một khoảng trống, "lùi 7 dòng" không còn là "lùi 7 ngày" nữa — lag "cùng thứ trong
-      tuần tuần trước" trỏ vào sai ngày, và các thành phần sin/cos theo mùa bị lệch pha. Không
-      có lỗi nào báo ra; mô hình chỉ đơn giản là tệ đi.</p>
+      <p><strong>Tại sao nó âm thầm gây hại:</strong> feature time-series xác định vị trí
+      "quá khứ" bằng <em>thứ tự dòng</em> trong DataFrame, không phải bằng ngày trên lịch.
+      <code>df["sales"].shift(7)</code> chỉ đơn thuần là "lấy giá trị của dòng cách đây 7 vị
+      trí" — nó không hề nhìn cột <code>date</code>. Hai cách đếm này chỉ trùng nhau khi không
+      có ngày nào bị thiếu.</p>
+      <p>Ví dụ cụ thể với series <code>store=1, AUTOMOTIVE</code> quanh Giáng sinh 2016:</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th class="num">index</th><th>date</th><th class="num">sales</th></tr></thead>
+        <tbody>
+          <tr><td class="num">100</td><td>20/12</td><td class="num">5</td></tr>
+          <tr><td class="num">101</td><td>21/12</td><td class="num">6</td></tr>
+          <tr><td class="num">102</td><td>22/12</td><td class="num">4</td></tr>
+          <tr><td class="num">103</td><td>23/12</td><td class="num">7</td></tr>
+          <tr><td class="num">104</td><td>24/12</td><td class="num">8</td></tr>
+          <tr><td class="num">—</td><td><em>25/12 (không có dòng — cửa hàng đóng)</em></td><td class="num">—</td></tr>
+          <tr><td class="num">105</td><td>26/12</td><td class="num">5</td></tr>
+          <tr><td class="num">106</td><td>27/12</td><td class="num">6</td></tr>
+          <tr><td class="num">107</td><td>28/12</td><td class="num">9</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Ở dòng <code>index=107</code> (28/12), <code>shift(7)</code> lấy
+      <code>index=100</code> → ngày <strong>20/12</strong>. Nhưng "7 ngày trước 28/12" lẽ ra
+      phải là <strong>21/12</strong>. Lệch 1 ngày. Lag đáng lẽ là "thứ Tư tuần trước" giờ
+      thành "thứ Ba", và các thành phần sin/cos theo mùa cũng bị trượt pha tương tự. Không có
+      lỗi nào báo ra; mô hình chỉ đơn giản là tệ đi.</p>
       <p><strong>Cách xử lý:</strong> dựng lại mỗi series trên một lịch ngày đầy đủ và điền các
       ngày thiếu bằng <code>sales = 0</code> (cửa hàng không bán gì — điều đó là <em>đúng sự
       thật</em>, và giữ cho khoảng cách giữa các dòng đều đặn). Đánh dấu mỗi dòng được chèn

@@ -105,6 +105,38 @@ sections:
     RMSLE hỏi "bạn sai <em>bao nhiêu lần</em>?" Đó là cách một family nhỏ và một family lớn
     được tính công bằng.</p></div>
 
+  <div class="card">
+    <h4 style="margin-top:0">Mở rộng — vì sao chi tiết này quan trọng</h4>
+    <p>Trong bài này, các family sản phẩm có thang đo rất khác nhau: <code>GROCERY I</code>
+    bán vài <strong>nghìn</strong> đơn vị/ngày, còn <code>BABY CARE</code> chỉ bán vài đơn
+    vị/ngày. Nếu chấm điểm bằng RMSE thường (đo "khoảng cách thô"), cùng một mức sai
+    <em>tỉ lệ</em> sẽ bị phạt rất chênh:</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Family</th><th>Dự đoán</th><th>Thực tế</th><th>Khoảng cách thô</th><th>Tỉ lệ</th></tr></thead>
+      <tbody>
+        <tr><td>GROCERY</td><td>3,000</td><td>1,000</td><td><strong>2,000</strong></td><td>3×</td></tr>
+        <tr><td>BABY CARE</td><td>15</td><td>5</td><td><strong>10</strong></td><td>3×</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>RMSE phạt GROCERY <strong>nặng gấp 200 lần</strong> BABY CARE — dù cả hai cùng
+    "đoán sai gấp 3 lần". Mô hình sẽ học cách dồn công sức vào family lớn và bỏ rơi
+    family nhỏ.</p>
+    <p><strong>Log sửa thế nào.</strong> Tính chất toán mấu chốt:
+    <code>log(a) − log(b) = log(a/b)</code>. Thử với 2 cặp số trên:</p>
+    <ul style="margin:.4em 0 .8em 0">
+      <li><code>log(3000) − log(1000) = log(3000/1000) = log(3)</code></li>
+      <li><code>log(15) − log(5) = log(15/5) = log(3)</code></li>
+    </ul>
+    <p>Hai cặp số trả về <strong>cùng một giá trị <code>log(3)</code></strong> — sau khi qua
+    log, "khoảng cách" không còn phụ thuộc thang đo, chỉ phụ thuộc <em>tỉ số</em>. Vì vậy
+    RMSLE phạt hai cặp này <em>như nhau</em>.</p>
+    <p class="muted" style="margin-bottom:0"><strong>Tóm 1 câu:</strong> log biến trục số từ
+    "thang khoảng cách" sang "thang tỉ lệ" → family bán nhiều và family bán ít được tính
+    công bằng.</p>
+  </div>
+
   <p><code>log1p(x) = log(1+x)</code> nên <code>log1p(0)=0</code> (không crash khi doanh số bằng
   0); hàm ngược của nó <code>expm1</code> trả về đơn vị thật. Hai hệ quả ta áp cho mọi mô hình:
   ta <strong>huấn luyện trong log space</strong>, và ta <strong>clip dự đoán về ≥ 0</strong>.</p>
@@ -194,9 +226,15 @@ sections:
       thời điểm dự đoán. Lag dùng đúng quá khứ; oil được forward-fill, không bao giờ
       interpolation; transactions chỉ ở dạng lag.
       <span class="muted">Bảo vệ: <code>assert_no_leak()</code>.</span></li>
-      <li style="margin:.5em 0"><strong>Gap-free trước khi tạo feature.</strong> Reindex của Cạm
-      bẫy 1 chạy <em>trước</em> mọi feature lag hay seasonality, để "lùi 7 dòng" luôn nghĩa là
-      "lùi 7 ngày." <span class="muted">Bảo vệ: <code>assert_gapfree()</code>.</span></li>
+      <li style="margin:.5em 0"><strong>Gap-free trước khi tạo feature.</strong> Các feature
+      time-series đếm theo <em>dòng</em>, không phải theo ngày trên lịch. Nếu series có ngày bị
+      thiếu (ví dụ: cửa hàng đóng cửa ngày 25/12 nên không tồn tại dòng nào cho ngày đó), thì
+      "lùi 7 dòng" không còn đồng nghĩa với "lùi 7 ngày" nữa — lag "cùng thứ trong tuần trước"
+      sẽ trỏ vào sai ngày, sin/cos theo mùa lệch pha, âm thầm phá điểm số mà không hề báo lỗi.
+      Vì vậy bước reindex ở <a href="{{ '/vi/stage-0/#trap-1' | relative_url }}">Cạm bẫy 1</a>
+      (chèn các ngày thiếu với <code>sales = 0</code>) phải chạy <em>trước</em> mọi feature lag
+      hay seasonality, để khoảng cách giữa các dòng luôn đều một ngày.
+      <span class="muted">Bảo vệ: <code>assert_gapfree()</code>.</span></li>
       <li style="margin:.5em 0"><strong>Lag phải vượt qua horizon (≥ 16 ngày).</strong> Ngày
       cuối ta dự đoán (31/8) cách 16 ngày so với ngày dữ liệu thật cuối cùng (15/8). Ta dự đoán
       cả 16 ngày một lúc (<em>direct forecasting</em>) với base lag là 16. Xem

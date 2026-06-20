@@ -100,6 +100,38 @@ sections:
     high," equally bad. Because <code>log(a) − log(b) = log(a/b)</code>, RMSLE asks "how many
     <em>times</em> off were you?" That's how a tiny family and a huge family count fairly.</p></div>
 
+  <div class="card">
+    <h4 style="margin-top:0">Unpack — why this matters</h4>
+    <p>Product families in this dataset live on wildly different scales: <code>GROCERY I</code>
+    sells a few <strong>thousand</strong> units/day, while <code>BABY CARE</code> sells only a
+    handful. With plain RMSE (which measures "raw gap"), the same <em>proportional</em> miss is
+    punished very differently:</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Family</th><th>Predicted</th><th>Actual</th><th>Raw gap</th><th>Ratio</th></tr></thead>
+      <tbody>
+        <tr><td>GROCERY</td><td>3,000</td><td>1,000</td><td><strong>2,000</strong></td><td>3×</td></tr>
+        <tr><td>BABY CARE</td><td>15</td><td>5</td><td><strong>10</strong></td><td>3×</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>RMSE punishes GROCERY <strong>200× more</strong> than BABY CARE — even though both are
+    "3× too high." The model learns to pour effort into the big family and abandon the
+    small one.</p>
+    <p><strong>How log fixes it.</strong> The key identity:
+    <code>log(a) − log(b) = log(a/b)</code>. Try both pairs:</p>
+    <ul style="margin:.4em 0 .8em 0">
+      <li><code>log(3000) − log(1000) = log(3000/1000) = log(3)</code></li>
+      <li><code>log(15) − log(5) = log(15/5) = log(3)</code></li>
+    </ul>
+    <p>Both pairs return <strong>the same value <code>log(3)</code></strong> — once you take the
+    log, "distance" stops depending on scale and depends only on the <em>ratio</em>. So RMSLE
+    punishes both pairs <em>equally</em>.</p>
+    <p class="muted" style="margin-bottom:0"><strong>One-line summary:</strong> log converts the
+    number line from "gap scale" to "ratio scale" → small-family and big-family forecasts get
+    scored fairly.</p>
+  </div>
+
   <p><code>log1p(x) = log(1+x)</code> so <code>log1p(0)=0</code> (no crash on zero sales); its
   inverse <code>expm1</code> returns real units. Two consequences we apply to every model: we
   <strong>train in log space</strong>, and we <strong>clip predictions to ≥ 0</strong>.</p>
@@ -187,8 +219,14 @@ sections:
       <li style="margin:.5em 0"><strong>No leakage.</strong> Every feature must be knowable at
       prediction time. Lags use strictly past days; oil is forward-filled, never interpolated;
       transactions are lag-only. <span class="muted">Guard: <code>assert_no_leak()</code>.</span></li>
-      <li style="margin:.5em 0"><strong>Gap-free before features.</strong> The Trap-1 reindex runs
-      <em>before</em> any lag or seasonal feature, so "7 rows back" always means "7 days back."
+      <li style="margin:.5em 0"><strong>Gap-free before features.</strong> Time-series features
+      count by <em>row</em>, not by date. If a series has missing days (e.g. stores close on
+      Dec 25, so no row exists for that day), "7 rows back" no longer means "7 days back" —
+      last-week lags point at the wrong day and seasonal sin/cos terms drift out of phase,
+      silently degrading scores with no error raised. So the
+      <a href="{{ '/en/stage-0/#trap-1' | relative_url }}">Trap-1</a> reindex (inserting the
+      missing days as <code>sales = 0</code>) must run <em>before</em> any lag or seasonal
+      feature, so "7 rows back" always means "7 days back."
       <span class="muted">Guard: <code>assert_gapfree()</code>.</span></li>
       <li style="margin:.5em 0"><strong>Lags must clear the horizon (≥ 16 days).</strong> The last
       day we predict (Aug 31) is 16 days past our last real data (Aug 15). We forecast all 16 days
