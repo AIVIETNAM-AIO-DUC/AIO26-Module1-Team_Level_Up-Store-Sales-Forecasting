@@ -23,6 +23,7 @@ real CSVs with `uv run`.
 6. `eda/` (01 → 06) — the evidence behind every modeling choice
 7. `concepts/seasonality-fourier.md`, `concepts/periodogram.md` — the seasonality machinery
 8. `concepts/baselines.md`, `concepts/lag-horizon.md` — forecasting mechanics
+9. `concepts/honest-rules.md` — the five disciplines that keep the scoreboard trustworthy
 
 ## Appendix A — Reproduce the numbers yourself
 
