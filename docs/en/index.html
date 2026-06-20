@@ -5,7 +5,6 @@ lang: en
 permalink: /en/
 journey: overview
 sections:
-  - { id: pillars,  label: "The four pillars" }
   - { id: journey,  label: "The journey map" }
   - { id: numbers,  label: "Numbers to remember" }
 ---
@@ -27,20 +26,6 @@ sections:
   Companion docs: <code>analyze/README.md</code>, <code>analyze/concepts/*</code>,
   <code>analyze/data-traps/*</code>, <code>analyze/eda/*</code>.</p>
 </header>
-
-<section class="block" id="pillars">
-  <div class="eyebrow">What this guide teaches</div>
-  <h3>Four pillars hold up everything else</h3>
-  <ol>
-    <li><strong>No leakage</strong> — never use a value you wouldn't have at prediction time.</li>
-    <li><strong>A gap-free calendar</strong> — "7 rows back" must mean "7 days back."</li>
-    <li><strong>Lags must clear the 16-day horizon</strong> — the floor is the horizon length.</li>
-    <li><strong>A time-respecting holdout</strong> — random K-fold cheats; the split must cut in time.</li>
-  </ol>
-  <p>If you internalize those four, the rest is mechanics. The
-  <a href="{{ '/en/foundations/' | relative_url }}">Foundations</a> page defines them in full
-  (plus RMSLE and an interactive calculator); each stage page is one more layer.</p>
-</section>
 
 <section class="block" id="journey">
   <div class="eyebrow">How to read this</div>

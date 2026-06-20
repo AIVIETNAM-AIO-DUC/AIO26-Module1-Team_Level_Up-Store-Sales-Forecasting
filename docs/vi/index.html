@@ -5,7 +5,6 @@ lang: vi
 permalink: /vi/
 journey: overview
 sections:
-  - { id: pillars, label: "Bốn cột trụ" }
   - { id: journey, label: "Bản đồ hành trình" }
   - { id: numbers, label: "Số cần nhớ" }
 ---
@@ -27,20 +26,6 @@ sections:
   của cuộc thi. Tài liệu đi kèm: <code>analyze/README.md</code>,
   <code>analyze/concepts/*</code>, <code>analyze/data-traps/*</code>, <code>analyze/eda/*</code>.</p>
 </header>
-
-<section class="block" id="pillars">
-  <div class="eyebrow">Hướng dẫn này dạy gì</div>
-  <h3>Bốn cột trụ giữ vững mọi thứ còn lại</h3>
-  <ol>
-    <li><strong>Không leakage<a href="{{ '/vi/glossary/' | relative_url }}#g-leakage" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a></strong> — không bao giờ dùng giá trị bạn sẽ không có tại thời điểm dự đoán.</li>
-    <li><strong>Lịch không khoảng trống (gap-free)</strong> — "lùi 7 dòng" phải nghĩa là "lùi 7 ngày."</li>
-    <li><strong>Lag<a href="{{ '/vi/glossary/' | relative_url }}#g-lag" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> phải vượt qua horizon 16 ngày</strong> — sàn = độ dài horizon.</li>
-    <li><strong>Holdout tôn trọng thời gian</strong> — K-fold<a href="{{ '/vi/glossary/' | relative_url }}#g-kfold" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> ngẫu nhiên là gian lận; phải cắt theo thời gian.</li>
-  </ol>
-  <p>Nếu bạn nội hóa được bốn cái đó, phần còn lại chỉ là cơ học. Trang
-  <a href="{{ '/vi/foundations/' | relative_url }}">Nền tảng</a> định nghĩa đầy đủ chúng (cộng
-  với RMSLE và một calculator tương tác); mỗi giai đoạn là một lớp thêm vào.</p>
-</section>
 
 <section class="block" id="journey">
   <div class="eyebrow">Cách đọc</div>
