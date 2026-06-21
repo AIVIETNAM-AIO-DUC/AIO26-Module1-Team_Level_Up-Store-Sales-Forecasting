@@ -3,7 +3,7 @@ description: A learner's guide to time-series forecasting on the Corporación Fa
 
 # Project Pages site lives at https://nqnguyen86.github.io/learning-time-series/
 baseurl: "/learning-time-series"
-url: "https://nqnguyen86.github.io"
+url: "https://aivietnam-aio-duc.github.io"
 
 # Build settings
 markdown: kramdown
