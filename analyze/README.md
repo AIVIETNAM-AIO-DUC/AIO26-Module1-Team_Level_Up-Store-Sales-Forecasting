@@ -12,6 +12,8 @@ real CSVs with `uv run`.
   one. Format per file: *what you see → why it hurts → the fix → where in code*.
 - **`eda/`** — what the exploratory notebook (`notebooks/01_eda.ipynb`) actually showed, section
   by section, with the verified numbers and the modeling implication.
+- **`baseline/`** — what the baseline notebook (`notebooks/02_baseline.ipynb`) produced: the
+  first holdout score and the floor every later model must beat.
 
 ## Suggested reading order
 
@@ -24,6 +26,7 @@ real CSVs with `uv run`.
 7. `concepts/seasonality-fourier.md`, `concepts/periodogram.md` — the seasonality machinery
 8. `concepts/baselines.md`, `concepts/lag-horizon.md` — forecasting mechanics
 9. `concepts/honest-rules.md` — the five disciplines that keep the scoreboard trustworthy
+10. `baseline/01-seasonal-naive.md` — the first real score (RMSLE 0.617) and the bar to beat
 
 ## Appendix A — Reproduce the numbers yourself
 

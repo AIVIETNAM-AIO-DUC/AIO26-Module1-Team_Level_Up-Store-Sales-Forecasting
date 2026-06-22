@@ -89,10 +89,9 @@ sections:
   <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
 
   <div class="callout key"><span class="tag">Why the log?</span>
-    <p style="margin:.4em 0 0">It measures <strong>relative</strong> (ratio) error, not the raw
-    gap. Predict 15 when truth is 5, and predict 3,000 when truth is 1,000 — both are "3× too
-    high," equally bad. Because <code>log(a) − log(b) = log(a/b)</code>, RMSLE asks "how many
-    <em>times</em> off were you?" That's how a tiny family and a huge family count fairly.</p></div>
+    <p style="margin:.4em 0 0">Taking the log before measuring error makes the metric care about
+    the <strong>ratio</strong> of the miss ("how many times off?") instead of the raw gap between
+    two numbers. The "Unpack" card below makes that concrete with an example.</p></div>
 
   <div class="card">
     <h4 style="margin-top:0">Unpack — why this matters</h4>

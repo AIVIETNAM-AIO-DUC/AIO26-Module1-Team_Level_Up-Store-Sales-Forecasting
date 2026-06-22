@@ -7,4 +7,4 @@ Populated by `src.validation.log_iteration`.
 
 | Stage / technique added | Holdout RMSLE | Δ vs previous best | Notes |
 |-------------------------|---------------|--------------------|-------|
-| _(baseline pending)_ | — | — | — |
+| baseline: seasonal-naive (weekly) | 0.61704 | - | same-weekday-prior-week; repeats last training week over 16-day horizon |

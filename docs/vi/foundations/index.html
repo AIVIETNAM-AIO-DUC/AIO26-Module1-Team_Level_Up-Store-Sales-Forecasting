@@ -91,11 +91,9 @@ sections:
   <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
 
   <div class="callout key"><span class="tag">Tại sao là log?</span>
-    <p style="margin:.4em 0 0">Nó đo sai số <strong>tương đối</strong> (tỉ lệ), không phải
-    khoảng cách thô. Dự đoán 15 trong khi thật là 5, và dự đoán 3,000 trong khi thật là 1,000
-    — cả hai đều "cao gấp 3 lần," tệ như nhau. Vì <code>log(a) − log(b) = log(a/b)</code>,
-    RMSLE hỏi "bạn sai <em>bao nhiêu lần</em>?" Đó là cách một family nhỏ và một family lớn
-    được tính công bằng.</p></div>
+    <p style="margin:.4em 0 0">Lấy log trước khi tính sai số khiến metric quan tâm đến
+    <strong>tỉ lệ sai</strong> ("sai gấp mấy lần?"), thay vì khoảng cách thô giữa hai số. Phần
+    "Mở rộng" ngay bên dưới sẽ làm rõ điều đó bằng một ví dụ cụ thể.</p></div>
 
   <div class="card">
     <h4 style="margin-top:0">Mở rộng — vì sao chi tiết này quan trọng</h4>
