@@ -88,6 +88,38 @@ sections:
     </tbody>
   </table>
   </div>
+  <p>Viết dưới dạng công thức — trước hết là <strong>dạng gốc</strong>, đúng như cuộc thi định nghĩa:</p>
+  <pre>                   1    n
+RMSLE  =  sqrt(   ───   Σ   ( ln(1 + pᵢ) − ln(1 + aᵢ) )²   )
+                   n   i=1
+
+   n  = số lượng prediction          pᵢ = prediction thứ i
+   ln = log tự nhiên (natural log)   aᵢ = giá trị actual thứ i</pre>
+  <p>Đó chính là các bước trên viết bằng ký hiệu. Với mỗi cặp gồm một prediction <code>pᵢ</code>
+  và actual <code>aᵢ</code> tương ứng:</p>
+  <ol>
+    <li><strong>Logarithmic</strong> — lấy log của cả hai số: <code>ln(1 + pᵢ)</code> và <code>ln(1 + aᵢ)</code>.</li>
+    <li><strong>Error</strong> — lấy hiệu hai log đó; hiệu này chính là sai số, nhưng đo trong log space.</li>
+    <li><strong>Squared</strong> — bình phương sai số đó.</li>
+    <li><strong>Mean</strong> — làm vậy cho cả <code>n</code> cặp rồi lấy trung bình các bình phương.</li>
+    <li><strong>Root</strong> — cuối cùng lấy căn bậc hai.</li>
+  </ol>
+
+  <div class="card">
+    <h4 style="margin-top:0"><code>log1p</code> nghĩa là gì, từng bước một</h4>
+    <p>Code — và công thức gọn bên dưới — viết <code>log1p(x)</code> thay vì <code>ln(1 + x)</code>.
+    Chúng là <strong>cùng một hàm</strong>; cái tên đọc rõ ra thành "<strong>log</strong> của
+    <strong>1</strong> cộng x": <code>log1p(x) = ln(1 + x)</code>.</p>
+    <pre>x = 15 :  1 + x = 16  →  ln(16) ≈ 2.7726   →  log1p(15) ≈ 2.7726
+x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
+    <p style="margin-bottom:0">Cái <code>+1</code> chính là toàn bộ mánh khóe: <code>log(0)</code>
+    thuần không xác định và sẽ làm crash, nhưng <code>log1p(0)</code> cho ra một số <code>0</code>
+    sạch sẽ. (<em>Vì sao</em> phải <code>+1</code>, và hàm ngược <code>expm1</code>, được giải
+    thích ngay bên dưới.)</p>
+  </div>
+
+  <p>Khi đã định nghĩa <code>log1p</code>, công thức gốc rút gọn lại thành dạng bạn sẽ gặp trong
+  code — cùng phép toán, viết ngắn hơn:</p>
   <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
 
   <div class="callout key"><span class="tag">Tại sao là log?</span>
@@ -127,9 +159,25 @@ sections:
     công bằng.</p>
   </div>
 
-  <p><code>log1p(x) = log(1+x)</code> nên <code>log1p(0)=0</code> (không crash khi doanh số bằng
-  0); hàm ngược của nó <code>expm1</code> trả về đơn vị thật. Hai hệ quả ta áp cho mọi mô hình:
-  ta <strong>huấn luyện trong log space</strong>, và ta <strong>clip dự đoán về ≥ 0</strong>.</p>
+  <div class="card">
+    <h4 style="margin-top:0">Tại sao cần một hàm <code>log1p</code> riêng?</h4>
+    <p><code>log1p(x) = log(1 + x)</code> đúng <strong>theo định nghĩa</strong> (<code>1p</code> =
+    "1 plus", tức 1 cộng). Vậy tại sao lại có hẳn một hàm <code>log1p</code> riêng thay vì cứ viết
+    <code>log(1 + x)</code>? Có hai lý do:</p>
+    <p><strong>1 — nó né được <code>log(0)</code>.</strong> Sales rất hay bằng <strong>0</strong>
+    (ngày đóng cửa, sản phẩm bán chậm), mà <code>log(0)</code> thuần thì không xác định (tiến tới
+    −∞ và làm crash metric). Cộng 1 trước sẽ đẩy điểm nguy hiểm đó ra xa:
+    <code>log1p(0) = log(1) = 0</code>.</p>
+    <p style="margin-bottom:0"><strong>2 — nó giữ chính xác khi <code>x</code> rất nhỏ.</strong>
+    Máy tính chỉ lưu được khoảng 15–16 chữ số, nên phép <code>1 + x</code> ngây thơ có thể làm mất
+    một <code>x</code> cực nhỏ (ví dụ <code>1 + 1e-16</code> bị làm tròn về <code>1.0</code>, nên
+    <code>log</code> trả về 0 — sai). <code>log1p</code> dùng khai triển chuỗi cho <code>x</code>
+    nhỏ nên vẫn đúng; hàm ngược <code>expm1(x) = eˣ − 1</code> (trả về đơn vị thật) tồn tại cũng
+    vì lý do chính xác này.</p>
+  </div>
+
+  <p>Hai hệ quả ta áp cho mọi mô hình: ta <strong>huấn luyện trong log space</strong>, và ta
+  <strong>clip dự đoán về ≥ 0</strong>.</p>
 
   <div class="card">
     <h4 style="margin-top:0">Thử ngay — RMSLE so với RMSE thường, đặt cạnh nhau</h4>

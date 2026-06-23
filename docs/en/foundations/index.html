@@ -86,6 +86,39 @@ sections:
     </tbody>
   </table>
   </div>
+  <p>As a formula — first the <strong>origin form</strong>, exactly as the competition defines it:</p>
+  <pre>                   1    n
+RMSLE  =  sqrt(   ───   Σ   ( ln(1 + pᵢ) − ln(1 + aᵢ) )²   )
+                   n   i=1
+
+   n  = number of predictions        pᵢ = the i-th prediction
+   ln = natural logarithm            aᵢ = the i-th actual value</pre>
+  <p>That's the recipe in symbols. For each pair — a prediction <code>pᵢ</code> and its matching
+  actual <code>aᵢ</code>:</p>
+  <ol>
+    <li><strong>Logarithmic</strong> — take the log of both numbers: <code>ln(1 + pᵢ)</code> and <code>ln(1 + aᵢ)</code>.</li>
+    <li><strong>Error</strong> — subtract the two logs; that difference is the error, measured in log space.</li>
+    <li><strong>Squared</strong> — square that difference.</li>
+    <li><strong>Mean</strong> — do this for all <code>n</code> pairs and average the squares.</li>
+    <li><strong>Root</strong> — finally take the square root.</li>
+  </ol>
+
+  <div class="card">
+    <h4 style="margin-top:0">What <code>log1p</code> means, step by step</h4>
+    <p>The code — and the shorthand formula below — writes <code>log1p(x)</code> instead of
+    <code>ln(1 + x)</code>. They are the <strong>same function</strong>; the name spells out
+    "<strong>log</strong> of <strong>1</strong> <strong>p</strong>lus x":
+    <code>log1p(x) = ln(1 + x)</code>.</p>
+    <pre>x = 15 :  1 + x = 16  →  ln(16) ≈ 2.7726   →  log1p(15) ≈ 2.7726
+x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
+    <p style="margin-bottom:0">That <code>+1</code> is the whole trick: plain <code>log(0)</code>
+    is undefined and would crash, but <code>log1p(0)</code> is a clean <code>0</code>. (The
+    <em>why</em> behind the <code>+1</code>, and its inverse <code>expm1</code>, are explained
+    just below.)</p>
+  </div>
+
+  <p>With <code>log1p</code> defined, the origin formula compresses to the shorthand you'll meet in
+  the code — same math, shorter to write:</p>
   <pre>RMSLE = sqrt( mean( (log1p(prediction) − log1p(actual))² ) )</pre>
 
   <div class="callout key"><span class="tag">Why the log?</span>
@@ -125,9 +158,25 @@ sections:
     scored fairly.</p>
   </div>
 
-  <p><code>log1p(x) = log(1+x)</code> so <code>log1p(0)=0</code> (no crash on zero sales); its
-  inverse <code>expm1</code> returns real units. Two consequences we apply to every model: we
-  <strong>train in log space</strong>, and we <strong>clip predictions to ≥ 0</strong>.</p>
+  <div class="card">
+    <h4 style="margin-top:0">Why a dedicated <code>log1p</code> function?</h4>
+    <p><code>log1p(x) = log(1 + x)</code> is true <strong>by definition</strong> (<code>1p</code> =
+    "1 plus"). So why ship a separate <code>log1p</code> instead of just writing
+    <code>log(1 + x)</code>? Two reasons:</p>
+    <p><strong>1 — it dodges <code>log(0)</code>.</strong> Sales are often <strong>0</strong>
+    (closed days, slow products), and plain <code>log(0)</code> is undefined (it heads to −∞ and
+    crashes the metric). Adding 1 first moves that danger point away:
+    <code>log1p(0) = log(1) = 0</code>.</p>
+    <p style="margin-bottom:0"><strong>2 — it stays accurate when <code>x</code> is tiny.</strong>
+    A computer keeps only ~15–16 digits, so the naive <code>1 + x</code> can silently lose a very
+    small <code>x</code> (e.g. <code>1 + 1e-16</code> rounds back to <code>1.0</code>, so
+    <code>log</code> returns 0 — wrong). <code>log1p</code> uses a series expansion for small
+    <code>x</code> and stays correct; its inverse <code>expm1(x) = eˣ − 1</code> (which returns
+    real units) exists for the same precision reason.</p>
+  </div>
+
+  <p>Two consequences we apply to every model: we <strong>train in log space</strong>, and we
+  <strong>clip predictions to ≥ 0</strong>.</p>
 
   <div class="card">
     <h4 style="margin-top:0">Try it — RMSLE vs plain RMSE, side by side</h4>
