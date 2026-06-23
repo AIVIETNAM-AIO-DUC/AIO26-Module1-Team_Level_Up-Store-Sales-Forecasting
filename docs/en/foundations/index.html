@@ -9,7 +9,6 @@ sections:
   - { id: data,    label: "Meet the data" }
   - { id: rmsle,   label: "RMSLE (try it)" }
   - { id: holdout, label: "Honest holdout" }
-  - { id: terms,   label: "Vocabulary" }
   - { id: rules,   label: "The 5 rules" }
 ---
 
@@ -251,93 +250,88 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
   does the split and asserts the ordering.</p>
 </section>
 
-<section class="block" id="terms">
-  <div class="eyebrow">Foundations · vocabulary</div>
-  <h3>Five terms the rules use</h3>
-  <p>The rules below assume five words. Each is a general time-series concept that applies far
-  beyond this project; the example is drawn from this dataset so it stays concrete.</p>
-  <div class="card">
-    <ul style="margin:0; padding-left:1.2em; list-style:none">
-      <li style="margin:.6em 0"><strong>Leakage.</strong> Using information at training time that
-      wouldn't be available when the model is asked to predict — the model "cheats" by seeing the
-      future. <span class="muted">Example: training on Aug 16 sales to predict Aug 17 would be
-      leakage; Aug 16 isn't known when we submit on Aug 15.</span></li>
-      <li style="margin:.6em 0"><strong>Lag.</strong> A past value of the series brought onto the
-      present row as a feature. <code>lag_7</code> on today's row = the value from 7 days ago in
-      the same series. <span class="muted">Example: <code>df["sales"].shift(7)</code> computed per
-      (store, family).</span></li>
-      <li style="margin:.6em 0"><strong>Trend.</strong> A slow, persistent direction of change
-      over long stretches (months or years). <span class="muted">Example: across 2013 → 2017 this
-      chain's overall sales drift upward — the long-run slope, ignoring weekly wiggles.</span></li>
-      <li style="margin:.6em 0"><strong>Seasonality.</strong> Repeating cycles tied to calendar
-      position — weekly (each weekday sells differently), yearly (December peak), etc. Usually
-      modeled with Fourier sin/cos terms or day-of-week one-hots.
-      <span class="muted">Example: every Sunday in this dataset sells more than every
-      Tuesday.</span></li>
-      <li style="margin:.6em 0"><strong>Direct forecasting.</strong> Predicting all H horizon days
-      in one shot (one model per horizon step, or a multi-output model) instead of predicting day
-      1, feeding it back, then predicting day 2 ("recursive"). With direct, no model output is
-      ever used as an input — errors don't compound — but every lag must be ≥ H days old.
-      <span class="muted">In this project H = 16, so the smallest usable lag is 16.</span></li>
-    </ul>
-  </div>
-</section>
-
 <section class="block" id="rules">
   <div class="eyebrow">Foundations · the guard rails</div>
   <h3>Five rules of honest time-series forecasting</h3>
-  <p>Everything above distills into five rules. Each is a general principle that holds for any
-  forecasting task on time-ordered data; the sidebar shows how <em>this</em> project enforces it
-  in code.</p>
+  <p>Five rules sit under every modeling decision in this project. Each is a general principle
+  that holds for any forecasting task on time-ordered data; each one below is grounded in our
+  2013-01-01 → 2017-08-15 daily sales data and the 16-day Aug 16 → Aug 31 horizon, and points to
+  the code that enforces it.</p>
+
+  <div class="callout tip"><span class="tag">Concrete scenario — what rule 1 &amp; rule 3 look like in this dataset</span>
+    <p style="margin:.3em 0 .5em">In the raw Kaggle files we <em>can't</em> see the future:
+    <code>test.csv</code> (Aug 16 → Aug 31) has no <code>sales</code> column. Leakage only
+    becomes a real risk when we cut our own <strong>holdout</strong> during development —
+    post-cutoff sales still sit in <code>train.csv</code> and can be accidentally pulled in
+    by sloppy feature code (rule 1).</p>
+    <p style="margin:.3em 0 .3em">At submission time we predict all 16 days (Aug 16 → Aug 31)
+    from data ending Aug 15. The same <code>lag_k</code> feature has to work on every day in
+    the horizon (rule 3):</p>
+    <ul style="margin:.2em 0 .3em; padding-left:1.2em">
+      <li><code>lag_2</code> for Aug 18 needs sales from Aug 16 → <strong>not yet known</strong> ❌</li>
+      <li><code>lag_16</code> for Aug 31 needs sales from Aug 15 → available ✅</li>
+    </ul>
+    <p style="margin:.2em 0 0">The smallest lag that works for all 16 horizon days =
+    <strong>16</strong>. That's why <code>base_lag = 16</code>.</p>
+  </div>
+
   <div class="card">
     <ol style="margin:0; padding-left:1.2em">
-      <li style="margin:.7em 0"><strong>No leakage.</strong> Every feature used at training time
-      must be knowable at prediction time. If a row about Aug 17 uses any value the world doesn't
-      yet know on Aug 15, the model is cheating.
-        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">In this project</span>
-          <p style="margin:.3em 0 0">Oil prices are forward-filled (never interpolated — interpolation
-          would pull in later values); transactions are lag-only (the same-day value isn't known when
-          we predict); <code>src/validation.py :: assert_no_leak()</code> raises if any feature peeks
-          forward.</p>
-        </div>
+      <li style="margin:.7em 0"><strong>No leakage.</strong>
+        <em>Leakage</em> means a feature on a training row uses information the world wouldn't yet
+        have on the day that row would be predicted — the model "cheats" by seeing the future.
+        Every feature must be knowable at the matching prediction day.
+        <span class="muted">In our data: <code>oil.csv</code> only quotes weekdays, so Sat/Sun
+        oil prices are missing. Interpolating between Fri 2017-07-28 and Mon 2017-07-31 leaks
+        Monday's price backward into Friday's row; <strong>forward-fill</strong> (carry Friday's
+        price into Sat/Sun) never reaches into the future. <code>transactions.csv</code> is a
+        harder version of the same trap: the file ends 2017-08-15 and isn't provided for the
+        Aug 16 → Aug 31 horizon, so it's usable only as a lagged feature, never same-day. Guarded
+        by <code>src/validation.py :: assert_no_leak()</code>.</span>
       </li>
-      <li style="margin:.7em 0"><strong>Gap-free before features.</strong> Time-series features
-      count by <em>row position</em>, not by date. Reindex every series onto a complete calendar
-      (daily, hourly, whatever your grain is) <em>before</em> generating any lag or seasonal
-      feature, otherwise "7 rows back" silently stops meaning "7 days back."
-        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">In this project</span>
-          <p style="margin:.3em 0 0">Stores close on Dec 25 → missing rows.
-          <code>reindex_series_gapfree()</code> inserts them as <code>sales = 0</code> with
-          <code>was_closed = True</code>; <code>assert_gapfree()</code> raises if any gap remains.
-          Full walkthrough: <a href="{{ '/en/stage-0/#trap-1' | relative_url }}">Trap 1</a>.</p>
-        </div>
+      <li style="margin:.7em 0"><strong>Gap-free before features.</strong>
+        A <em>lag</em> is a past value of the series carried onto the current row as a feature
+        (<code>lag_7</code> for today = the value seven <em>rows</em> back). <em>Seasonality</em>
+        features — sin/cos of day-of-year, day-of-week one-hots, etc. — likewise assume consecutive
+        rows. Both count by row position, not by date, so any missing day silently shifts every
+        lag and breaks every seasonal alignment.
+        <span class="muted">In our data: every store closes on Dec 25, so those rows are absent
+        from <code>train.csv</code>. Without reindexing, <code>lag_7</code> on 2014-01-01 silently
+        reaches 2013-12-24 (not Dec 25). <code>reindex_series_gapfree()</code> inserts the missing
+        days with <code>sales = 0</code>, <code>was_closed = True</code> per (store, family);
+        <code>assert_gapfree()</code> raises if any gap remains. Full walkthrough:
+        <a href="{{ '/en/stage-0/#trap-1' | relative_url }}">Trap 1</a>.</span>
       </li>
-      <li style="margin:.7em 0"><strong>Lags must clear the horizon.</strong> Under direct
-      forecasting, every lag fed into the model must be at least H steps old, where H is the
-      horizon length. A shorter lag wouldn't be knowable on the day we predict the far edge of H.
-        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">In this project</span>
-          <p style="margin:.3em 0 0">H = 16, so <code>base_lag = 16</code>. The last day we predict
-          (Aug 31) is 16 days past our last real data (Aug 15); a lag-7 feature would be missing
-          from Aug 22 onward. See
-          <a href="{{ '/en/stage-2/#laghorizon' | relative_url }}">the lag-horizon deep dive</a>.</p>
-        </div>
+      <li style="margin:.7em 0"><strong>Lags must clear the horizon.</strong>
+        Under <em>direct forecasting</em> — one prediction per horizon day in a single shot, with
+        no model output ever fed back as input — every lag must be at least H rows old, where H is
+        the horizon length. A shorter lag wouldn't be knowable on the day we predict the far edge
+        of H.
+        <span class="muted">In our data: H = 16, so <code>base_lag = 16</code>. The last day we
+        predict (Aug 31) is 16 days past our last real data (Aug 15); <code>lag_7</code> works
+        Aug 16 → 22 but breaks from <strong>Aug 23 onward</strong> (Aug 23's lag_7 source =
+        Aug 16, itself a test day with no real sales). See
+        <a href="{{ '/en/stage-2/#laghorizon' | relative_url }}">the lag-horizon deep dive</a>.</span>
       </li>
-      <li style="margin:.7em 0"><strong>Time-respecting validation.</strong> Validation data must
-      be strictly later in time than training data. Random K-fold splits across time and lets the
-      model train on the future of the days it's about to "predict."
-        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">In this project</span>
-          <p style="margin:.3em 0 0">One 16-day holdout (Jul 31 → Aug 15) mirrors the real horizon;
-          <code>train_holdout_split()</code> performs the cut and asserts the ordering.</p>
-        </div>
+      <li style="margin:.7em 0"><strong>Time-respecting validation.</strong>
+        Validation data must be strictly later in time than training data. Random K-fold cuts
+        across time and lets the model train on the future of the days it's about to "predict,"
+        producing scores that don't survive the real test.
+        <span class="muted">In our data: the real test is Aug 16 → Aug 31, 2017 — 16 days right
+        after training ends. The development holdout mirrors that exactly: train on
+        2013-01-01 → 2017-07-30, validate on 2017-07-31 → 2017-08-15 (same 16-day window, just
+        shifted back 16 days). <code>train_holdout_split()</code> performs the cut and asserts
+        the ordering.</span>
       </li>
-      <li style="margin:.7em 0"><strong>Consistent metric handling.</strong> Compute the metric
-      identically across every model and every prediction — same transform, same clipping, same
-      averaging — or scores stop being comparable.
-        <div class="callout tip" style="margin:.4em 0 0"><span class="tag">In this project</span>
-          <p style="margin:.3em 0 0">RMSLE on <code>log1p</code>, predictions clipped to ≥ 0 before
-          scoring; <code>src/validation.py :: rmsle()</code> and <code>clip_nonneg()</code> are the
-          only entry points.</p>
-        </div>
+      <li style="margin:.7em 0"><strong>Consistent metric handling.</strong>
+        Compute the metric identically across every model and every prediction — same transform,
+        same clipping, same averaging — or the scoreboard stops being comparable.
+        <span class="muted">In our data: Kaggle scores this competition as RMSLE on
+        <code>log1p(sales)</code>, so we do the same on every holdout. Sales can't be negative,
+        but a regression model can still emit a small negative — an unclipped negative crashes
+        <code>log1p</code>, so we clip predictions to ≥ 0 first.
+        <code>src/validation.py :: rmsle()</code> and <code>clip_nonneg()</code> are the only
+        entry points.</span>
       </li>
     </ol>
   </div>

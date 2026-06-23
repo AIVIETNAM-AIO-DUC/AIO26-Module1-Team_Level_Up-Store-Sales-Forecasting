@@ -44,6 +44,18 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
   <div class="eyebrow">Giai đoạn 0 — EDA · trend</div>
   <h3>Sự dịch chuyển chậm qua ~4,6 năm</h3>
   <p>Điều đầu tiên ta nhận thấy: doanh số không phải stationary<a href="{{ '/vi/glossary/' | relative_url }}#g-stationary" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> — chúng đang tăng.</p>
+
+  <div class="card">
+    <h4 style="margin-top:0">Tổng doanh số theo ngày qua thời gian (toàn bộ 1.782 series)</h4>
+    <img src="{{ '/assets/trend-daily-total.png' | relative_url }}"
+         alt="Tổng doanh số theo ngày 2013–2017: đường tổng theo ngày màu xám có răng cưa theo tuần, phủ lên là đường rolling mean 28 ngày màu đỏ tăng từ ~386k lên ~856k, dốc lúc đầu rồi thoải dần."
+         style="width:100%;height:auto;display:block;border-radius:8px" />
+    <p class="muted" style="margin-top:12px">Xám = tổng theo ngày thô (chú ý răng cưa theo tuần và
+    các hố sâu ngày 1/1); đỏ = rolling mean 28 ngày (trung tâm), cắt qua nhiễu đó để lộ ra trend:
+    một đà tăng <strong>gấp đôi</strong> từ ~386k (2013) lên ~856k (2017), dốc nhất ở giai đoạn đầu
+    rồi thoải dần về sau — một đường cong, không phải đường thẳng.</p>
+  </div>
+
   <ul>
     <li><strong>Trung bình tổng theo ngày tăng gấp đôi</strong>: ~<strong>386k</strong> năm 2013
     → ~<strong>856k</strong> năm 2017.</li>
@@ -94,6 +106,22 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
   Một spike<a href="{{ '/vi/glossary/' | relative_url }}#g-spike" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> cao tại 7 ngày nghĩa là "có một nhịp lặp 7 ngày mạnh trong dữ liệu này." Công cụ
   thực hiện việc tách đó là <strong>FFT</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-fft" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> — hãy nghĩ về nó như một "cỗ máy tìm chu kỳ."</p>
 
+  <div class="card">
+    <h4 style="margin-top:0">Sóng sin là một viên gạch; hình dạng sắc cần nhiều hơn một viên</h4>
+    <img src="{{ '/assets/fourier-smooth-vs-sharp.png' | relative_url }}"
+         alt="Bốn ô. Trên-trái: một sóng cosine 7 ngày trơn. Trên-phải: periodogram của nó, một spike duy nhất tại 7 ngày. Dưới-trái: hình dạng tuần thật của store 1, phẳng từ thứ Hai đến thứ Bảy với một hố sâu sắc vào Chủ Nhật. Dưới-phải: periodogram của nó, một spike tại 7 ngày cộng một spike thứ hai tại 3,5 ngày."
+         style="width:100%;height:auto;display:block;border-radius:8px" />
+    <p class="muted" style="margin-top:12px">Cả hai hàng đều lặp mỗi <strong>7 ngày</strong>, nhưng
+    hình dạng khác nhau. Một sóng cosine <em>trơn</em> đơn lẻ (trên) là một sóng thuần → FFT báo
+    <strong>một spike tại 7 ngày</strong>. Hình dạng tuần thật của store 1 (dưới) — phẳng T2–T7, một
+    hố <em>sắc</em> vào Chủ Nhật (cùng các con số với biểu đồ cột tuần ở trên) — <em>không</em> phải
+    sóng sin thuần, nên để dựng lại nó cần sóng 7 ngày <strong>cộng với "harmonic" nửa chu kỳ ở 3,5
+    ngày</strong>. Spike thứ hai đó không phải do ta đặt vào bằng tay; FFT tìm ra nó vì góc bị sắc.
+    <strong>Đó chính là việc FFT làm:</strong> đường cong vào → các spike ra, cho biết đường cong
+    được tạo từ những sóng nào (và mạnh ra sao). Nguồn:
+    <code>docs/assets/make_fourier_figures.py</code> (minh họa tổng hợp).</p>
+  </div>
+
   <p>FFT nói bằng <em>frequency</em> (cycles/day); ta nghĩ bằng <em>period</em> (days/cycle).
   <code>period = 1 / frequency</code>. Chu kỳ dài, chậm → frequency thấp; chu kỳ ngắn, nhanh →
   frequency cao.</p>
@@ -107,6 +135,17 @@ dòng đã chèn    :     7,128    <b>← 4 trên mỗi series (bốn ngày Giá
     <li><strong>Chỉ xem 2–60 ngày trên trục y log</strong> để xu hướng tăng nhiều năm chậm chạp
     không nuốt mất spike tuần, và các spike nhỏ hơn vẫn nhìn thấy được.</li>
   </ul>
+
+  <div class="card">
+    <h4 style="margin-top:0">Periodogram thật của tổng theo ngày (dải 2–60 ngày)</h4>
+    <img src="{{ '/assets/periodogram.png' | relative_url }}"
+         alt="Periodogram của tổng doanh số theo ngày trên dải 2 đến 60 ngày với trục y log. Spike cao nhất ở 7 ngày, một spike thứ hai rõ ở 3,5 ngày (cả hai được đánh dấu bằng đường gạch đỏ), và một bump nhỏ hơn xuất hiện gần 15 ngày."
+         style="width:100%;height:auto;display:block;border-radius:8px" />
+    <p class="muted" style="margin-top:12px">Đúng bằng pattern ở ô dưới-phải của hình minh họa phía
+    trên, nhưng trên dữ liệu thật: một spike <strong>7 ngày</strong> áp đảo, harmonic
+    <strong>3,5 ngày</strong> (đường gạch đỏ), và một bump nhỏ gần <strong>15 ngày</strong>. Nguồn:
+    <code>notebooks/01_eda.ipynb</code> §4 (FFT của tổng theo ngày đã trừ trung bình).</p>
+  </div>
 
   <div class="callout key"><span class="tag">Của ta cho thấy gì</span>
     <p style="margin:.4em 0 0">Spike cao nhất tại <strong>7 ngày</strong> (weekly) → một spike

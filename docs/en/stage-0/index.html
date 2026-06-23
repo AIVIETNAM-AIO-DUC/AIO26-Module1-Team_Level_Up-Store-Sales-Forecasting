@@ -44,6 +44,18 @@ rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></p
   <div class="eyebrow">Stage 0 — EDA · trend</div>
   <h3>The slow drift over ~4.6 years</h3>
   <p>The first thing we notice: sales are not stationary — they're growing.</p>
+
+  <div class="card">
+    <h4 style="margin-top:0">Overall daily total sales over time (all 1,782 series)</h4>
+    <img src="{{ '/assets/trend-daily-total.png' | relative_url }}"
+         alt="Daily total sales 2013–2017: a grey daily-total line with a sharp weekly sawtooth, overlaid with a red 28-day rolling mean that rises from about 386k to about 856k, steeply at first and then flattening."
+         style="width:100%;height:auto;display:block;border-radius:8px" />
+    <p class="muted" style="margin-top:12px">Grey = raw daily total (note the weekly sawtooth and the
+    deep Jan-1 dips); red = 28-day centered rolling mean, which cuts through that noise to expose the
+    trend: a climb that roughly <strong>doubles</strong> from ~386k (2013) to ~856k (2017), steepest
+    early and flattening later — a curve, not a line.</p>
+  </div>
+
   <ul>
     <li><strong>Mean daily total roughly doubles</strong>: ~<strong>386k</strong> in 2013 →
     ~<strong>856k</strong> in 2017.</li>
@@ -94,6 +106,22 @@ rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></p
   at each cycle length. A tall spike at 7 days means "a strong 7-day repeat lives in here." The
   tool that does the splitting is the <strong>FFT</strong> — think of it as a "cycle-finder."</p>
 
+  <div class="card">
+    <h4 style="margin-top:0">A sine wave is a building block; a sharp shape needs more than one</h4>
+    <img src="{{ '/assets/fourier-smooth-vs-sharp.png' | relative_url }}"
+         alt="Four panels. Top-left: a smooth 7-day cosine. Top-right: its periodogram, a single spike at 7 days. Bottom-left: store 1's real weekly shape, flat Monday–Saturday with a sharp Sunday dip. Bottom-right: its periodogram, a spike at 7 days plus a second spike at 3.5 days."
+         style="width:100%;height:auto;display:block;border-radius:8px" />
+    <p class="muted" style="margin-top:12px">Both rows repeat every <strong>7 days</strong>, but the
+    shape differs. A single <em>smooth</em> cosine (top) is one pure wave → the FFT reports
+    <strong>one spike at 7 days</strong>. Store 1's real weekly shape (bottom) — flat Mon–Sat, a
+    <em>sharp</em> Sunday dip (the same numbers as the weekly bar chart above) — is <em>not</em> a
+    pure sine, so rebuilding it takes the 7-day wave <strong>plus its half-length "harmonic" at 3.5
+    days</strong>. That second spike isn't put there by hand; the FFT finds it because the corner is
+    sharp. <strong>That is what the FFT does:</strong> curve in → spikes out, telling you which waves
+    (and how strong) the curve is made of. Source: <code>docs/assets/make_fourier_figures.py</code>
+    (synthetic illustration).</p>
+  </div>
+
   <p>The FFT speaks in <em>frequency</em> (cycles/day); we think in <em>period</em> (days/cycle).
   <code>period = 1 / frequency</code>. Long, slow cycles → low frequency; short, fast cycles →
   high frequency.</p>
@@ -108,6 +136,17 @@ rows inserted   :     7,128    <b>← 4 per series (the four Christmases)</b></p
     <li><strong>Show 2–60 days on a log y-axis</strong> so the slow multi-year growth doesn't dwarf
     the weekly spike, and smaller spikes stay visible.</li>
   </ul>
+
+  <div class="card">
+    <h4 style="margin-top:0">The real periodogram of our daily totals (2–60 day band)</h4>
+    <img src="{{ '/assets/periodogram.png' | relative_url }}"
+         alt="Periodogram of the daily total sales over the 2 to 60 day band on a log y-axis. The tallest spike is at 7 days, a clear second spike sits at 3.5 days (both marked with red dashed lines), and a smaller bump appears near 15 days."
+         style="width:100%;height:auto;display:block;border-radius:8px" />
+    <p class="muted" style="margin-top:12px">Exactly the bottom-right pattern from the illustration
+    above, now on the real data: a dominant <strong>7-day</strong> spike, the <strong>3.5-day</strong>
+    harmonic (red dashed lines), and a minor bump near <strong>15 days</strong>. Source:
+    <code>notebooks/01_eda.ipynb</code> §4 (FFT of mean-removed daily totals).</p>
+  </div>
 
   <div class="callout key"><span class="tag">What ours shows</span>
     <p style="margin:.4em 0 0">Tallest spike at <strong>7 days</strong> (weekly) → a clear second
