@@ -111,14 +111,34 @@ Cả hai cặp đều thu về **cùng một giá trị `log(3)`**. RMSLE chấm
 **Tóm tắt một dòng:** log chuyển trục số từ "gap scale" sang "ratio scale" → forecast của
 family nhỏ và family lớn được chấm công bằng.
 
-## `log1p` và `expm1` — miếng vá cho zero-sales
+## `log1p` và `expm1` — tại sao cần một hàm riêng
 
-Công thức bên trên viết `log1p` chứ không phải `log` thuần vì một lý do: `log(0)` không xác
-định, mà sales rất hay bằng **0** (ngày đóng cửa, sản phẩm bán chậm). Cách sửa là dịch input
-thêm 1 trước khi lấy log:
+`log1p(x) = log(1 + x)` đúng **theo định nghĩa** — chữ `1p` chính là "**1** **p**lus" (1 cộng).
+Vậy tại sao thư viện toán lại có hẳn một hàm `log1p` riêng thay vì để ta tự viết `log(1 + x)`?
+Có **hai lý do**:
+
+**Lý do 1 — nó né được `log(0)`.** Sales rất hay bằng **0** (ngày đóng cửa, sản phẩm bán chậm),
+mà `log(0)` thuần thì không xác định (nó tiến tới −∞ và làm crash metric). Cộng 1 trước sẽ đẩy
+điểm nguy hiểm đó ra khỏi vùng cấm:
 
 ```
 log1p(x) = log(1 + x)        →   log1p(0) = log(1) = 0     ← không crash
+```
+
+**Lý do 2 — nó giữ chính xác khi `x` rất nhỏ.** Máy tính chỉ lưu được khoảng 15–16 chữ số, nên
+phép `1 + x` ngây thơ có thể *làm mất* một `x` cực nhỏ:
+
+```
+x = 0.0000000000000001  (1e-16)
+
+   ngây thơ:  1 + x = 1.0   (x bị làm tròn mất)  →  log(1.0) = 0      ← sai
+   log1p(x)         ≈ 1e-16                                           ← đúng
+```
+
+`log1p` dùng một thuật toán riêng (khai triển chuỗi cho `x` nhỏ) nên không bao giờ phải tính
+`1 + x` một cách ngây thơ. Hàm ngược `expm1(x) = eˣ − 1` tồn tại cũng vì lý do chính xác này:
+
+```
 expm1(x) = eˣ − 1            →   inverse của log1p, trả về sales thật
 ```
 

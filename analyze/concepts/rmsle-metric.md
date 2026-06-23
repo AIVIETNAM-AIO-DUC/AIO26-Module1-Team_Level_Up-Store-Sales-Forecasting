@@ -112,13 +112,34 @@ Both pairs collapse to **the same value `log(3)`**. RMSLE scores them *equally*.
 **One-line summary:** log converts the number line from "gap scale" to "ratio scale" →
 small-family and big-family forecasts get scored fairly.
 
-## `log1p` and `expm1` — the zero-sales patch
+## `log1p` and `expm1` — why a dedicated function
 
-The formula above writes `log1p` not plain `log` for one reason: `log(0)` is undefined, and sales
-are often **0** (closed days, slow products). The fix is to shift the input by 1 before logging:
+`log1p(x) = log(1 + x)` is true **by definition** — the `1p` literally means "**1** **p**lus". So
+why does the math library ship a separate `log1p` instead of letting us just write `log(1 + x)`?
+Two reasons:
+
+**Reason 1 — it dodges `log(0)`.** Sales are often **0** (closed days, slow products), and plain
+`log(0)` is undefined (it heads to −∞ and crashes the metric). Adding 1 first moves that danger
+point out of the way:
 
 ```
 log1p(x) = log(1 + x)        →   log1p(0) = log(1) = 0     ← no crash
+```
+
+**Reason 2 — it stays accurate when `x` is tiny.** A computer keeps only ~15–16 digits, so the
+naive `1 + x` can silently *lose* a very small `x`:
+
+```
+x = 0.0000000000000001  (1e-16)
+
+   naive:   1 + x = 1.0   (x is rounded away)  →  log(1.0) = 0      ← wrong
+   log1p(x)        ≈ 1e-16                                          ← right
+```
+
+`log1p` uses a dedicated algorithm (a series expansion for small `x`) so it never has to form
+`1 + x` naively. Its inverse `expm1(x) = eˣ − 1` exists for the same precision reason:
+
+```
 expm1(x) = eˣ − 1            →   inverse of log1p, returns real sales
 ```
 
