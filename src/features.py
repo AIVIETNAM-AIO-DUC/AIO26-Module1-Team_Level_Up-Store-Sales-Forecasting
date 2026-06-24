@@ -260,3 +260,78 @@ def make_calendar_features(
     ).astype("int8")
 
     return out
+
+
+def make_oil_features(
+    oil: pd.DataFrame, index: pd.DatetimeIndex, *, col: str = "oil"
+) -> pd.DataFrame:
+    """Build a gap-free, **forward-filled** daily oil-price feature (research R4; FR-008).
+
+    ``oil.csv`` has two kinds of hole on a daily calendar: weekends/holidays have no row (oil
+    trades on business days only) and a few rows carry a blank price (e.g. 2013-01-01). Left over
+    as ``NaN`` they crash linear models and spread through any derived feature; filled naively with
+    ``interpolate``/``bfill`` they peek at *future* prices and leak. The fix is **forward-fill** —
+    carry the last *known* price into each gap (a backward lookup, so past-only and honest) — with
+    a single leading **back-fill** to cover the very first blank day, which has no prior price to
+    look back to and is never an honest training target anyway (see
+    analyze/data-traps/02-oil-gaps.md).
+
+    Note the EDA found oil's apparent sales effect is largely a spurious trend artifact (raw corr
+    ≈ −0.62, ≈ 0 once detrended), so this is a *candidate* feature for the holdout to judge, not a
+    proven driver.
+
+    Args:
+        oil: Raw frame from :func:`data.load_oil` with columns ``date`` and ``dcoilwtico``.
+        index: The daily ``DatetimeIndex`` (or datetime-like values) to return prices for —
+            typically the union of training dates and the forecast horizon. The continuous fill
+            calendar spans this index's min→max so gaps inside it are filled before slicing back.
+        col: Output column name. Defaults to ``"oil"``.
+
+    Returns:
+        A DataFrame indexed by the sorted, de-duplicated dates of ``index`` with one column
+        (``col``) of forward-filled prices and no missing values.
+
+    Raises:
+        AssertionError: If ``index`` is empty, or if any price remains missing after the fill.
+    """
+    idx = pd.DatetimeIndex(pd.to_datetime(index)).unique().sort_values()
+    assert len(idx) > 0, "make_oil_features received an empty index."
+
+    # Continuous daily calendar across the requested span, so weekend/holiday gaps are filled
+    # from the last business-day price before we slice back to the requested dates.
+    full = pd.date_range(idx.min(), idx.max(), freq="D")
+    price = oil.set_index("date")["dcoilwtico"].sort_index()
+
+    # ffill = backward lookup (past-only, leak-free); the trailing bfill only touches the leading
+    # run before the first known price (the one allowed exception).
+    filled = price.reindex(full).ffill().bfill()
+
+    out = filled.reindex(idx).rename(col).to_frame()
+    out.index.name = None
+    assert out[col].notna().all(), "oil price still has gaps after ffill+bfill."
+    return out
+
+
+def make_promotion_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Select the contemporaneous ``onpromotion`` feature — same-day, leak-free (FR-008).
+
+    Unlike ``transactions`` (an *outcome* of the day, shipped with no test file → lag-only),
+    ``onpromotion`` is a *decision made in advance*: ``test.csv`` carries it for all 16 horizon
+    days with zero nulls. So it may be used on the **same day** as the prediction without any lag
+    or leakage (analyze/eda/05-promotions-oil.md; analyze/data-traps/06-transactions-past-only.md).
+    Closed days inserted by :func:`data.reindex_series_gapfree` already carry ``onpromotion = 0``.
+
+    Args:
+        df: A gap-free sales frame (e.g. from :func:`data.reindex_series_gapfree`) with columns
+            ``store_nbr``, ``family``, ``date``, ``onpromotion``.
+
+    Returns:
+        A tidy ``[store_nbr, family, date, onpromotion]`` frame, one row per series-day.
+
+    Raises:
+        AssertionError: If any ``onpromotion`` value is missing (the contemporaneous guarantee).
+    """
+    cols = ["store_nbr", "family", "date", "onpromotion"]
+    out = df.loc[:, cols].copy()
+    assert out["onpromotion"].notna().all(), "onpromotion has NaNs — expected contemporaneous."
+    return out.reset_index(drop=True)

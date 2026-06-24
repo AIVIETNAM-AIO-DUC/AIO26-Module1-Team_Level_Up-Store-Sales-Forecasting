@@ -1,4 +1,4 @@
-# Trap 2 — Oil price gaps + blanks (your first taste of leakage)  ⏳ FIX PLANNED
+# Trap 2 — Oil price gaps + blanks (your first taste of leakage)  ✅ FIXED
 
 **Scope:** the two holes in `oil.csv` and the past-only fill that handles them. The *why* of
 leakage is [`../concepts/leakage.md`](../concepts/leakage.md); the verified gap counts and the
