@@ -25,6 +25,19 @@ ANNUAL_FOURIER_ORDER: int = 4
 _WEEKLY_FREQ: str = "W"
 _ANNUAL_FREQ: str = "YE"
 
+# Calendar-feature constants (T027).
+# Payday in Ecuador falls on the 15th and the last day of the month, but the EDA shows the
+# demand response is a multi-day wave, not a one-day spike (a naive single-day flag is ~1.01x;
+# the real lift is a start-of-month surge of ~1.24x). So we also flag the days *following* each
+# payday. See analyze/eda/04-calendar-holidays.md.
+PAYDAY_WINDOW_DAYS: int = 3
+
+# The 2016-04-16 magnitude-7.8 earthquake drove a ~1-week relief-buying spike. We flag a
+# deliberately generous window so the model absorbs it as a known one-off event instead of
+# bending trend/seasonality to fit it (research R7; analyze/data-traps/04-earthquake-anomaly.md).
+_EARTHQUAKE_START: pd.Timestamp = pd.Timestamp("2016-04-16")
+_EARTHQUAKE_END: pd.Timestamp = pd.Timestamp("2016-05-15")
+
 
 def make_deterministic_features(
     index: pd.DatetimeIndex,
@@ -188,3 +201,62 @@ def make_holiday_features(holidays: pd.DataFrame, stores: pd.DataFrame) -> pd.Da
         .sort_values(["store_nbr", "date"])
         .reset_index(drop=True)
     )
+
+
+def make_calendar_features(
+    index: pd.DatetimeIndex, *, payday_window: int = PAYDAY_WINDOW_DAYS
+) -> pd.DataFrame:
+    """Build date-only calendar features: day-of-week, month, payday window, earthquake flag.
+
+    Every column is a pure function of the calendar date — store-independent and knowable in
+    advance — so the features extend straight into the forecast horizon with no leakage (FR-009).
+    The caller joins them to each series by date.
+
+    Columns produced:
+
+    - **``dayofweek``** (0=Mon … 6=Sun) and **``month``** (1-12) — raw integer calendar codes.
+      The *linear* model already encodes these cycles smoothly via Fourier terms
+      (:func:`make_deterministic_features`), so these integers are mainly for the **tree** side
+      of the later hybrid (XGBoost on residuals), which can split on them directly.
+    - **``is_payday``** — exactly the 15th and the month-end (the literal Ecuadorian payday days).
+    - **``is_payday_window``** — a payday day *or* one of the next ``payday_window`` days. The EDA
+      shows the demand response is a multi-day wave (a start-of-month surge after the month-end
+      payday), so the window captures the real signal a single-day flag misses
+      (analyze/eda/04-calendar-holidays.md).
+    - **``is_earthquake``** — 1 across the 2016-04-16 → 2016-05-15 relief-spike window (research R7).
+
+    Args:
+        index: A daily ``DatetimeIndex`` (or datetime-like values). Order and duplicates are
+            normalized away internally. Need not be gap-free — each row is computed independently.
+        payday_window: How many days *after* each payday to keep flagged in ``is_payday_window``.
+            Defaults to 3 (EDA-backed start-of-month surge).
+
+    Returns:
+        A DataFrame indexed by the sorted, de-duplicated dates, with columns ``dayofweek``,
+        ``month``, ``is_payday``, ``is_payday_window``, ``is_earthquake`` (all ``int8``).
+
+    Raises:
+        AssertionError: If ``index`` is empty.
+    """
+    idx = pd.DatetimeIndex(pd.to_datetime(index)).unique().sort_values()
+    assert len(idx) > 0, "make_calendar_features received an empty index."
+
+    out = pd.DataFrame(index=idx)
+    out["dayofweek"] = idx.dayofweek.astype("int8")
+    out["month"] = idx.month.astype("int8")
+    out["is_payday"] = (idx.is_month_end | (idx.day == 15)).astype("int8")
+
+    # Post-payday window: for each date, how many days since the most recent payday (the 15th or a
+    # month-end). Generate paydays over a span padded back far enough that every date has one
+    # before it, then look up the latest payday <= each date.
+    span = pd.date_range(idx.min() - pd.Timedelta(days=40), idx.max(), freq="D")
+    paydays = span[span.is_month_end | (span.day == 15)]
+    last_payday = paydays[paydays.searchsorted(idx, side="right") - 1]
+    days_since = (idx - last_payday).days
+    out["is_payday_window"] = ((days_since >= 0) & (days_since <= payday_window)).astype("int8")
+
+    out["is_earthquake"] = (
+        (idx >= _EARTHQUAKE_START) & (idx <= _EARTHQUAKE_END)
+    ).astype("int8")
+
+    return out
