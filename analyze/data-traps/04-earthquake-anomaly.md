@@ -28,6 +28,8 @@ delete those rows — that would punch a hole back into the gap-free index built
 
 ## Verify
 
+The aftermath Event rows the holidays file itself carries:
+
 ```bash
 uv run python -c "
 import sys; sys.path.insert(0,'.')
@@ -38,10 +40,28 @@ print(h[mask][['date','type','locale','description']].head())  # the aftermath E
 "
 ```
 
+And that the flag covers exactly the intended window:
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+import pandas as pd
+from src import features
+cf = features.make_calendar_features(pd.date_range('2016-01-01','2016-12-31', freq='D'))
+print('earthquake days flagged:', int(cf['is_earthquake'].sum()))      # 30 (Apr 16 - May 15)
+print('2016-04-15:', int(cf.loc['2016-04-15','is_earthquake']))         # 0 (day before)
+print('2016-04-16:', int(cf.loc['2016-04-16','is_earthquake']))         # 1 (quake day)
+print('2016-05-15:', int(cf.loc['2016-05-15','is_earthquake']))         # 1 (window end)
+print('2016-05-16:', int(cf.loc['2016-05-16','is_earthquake']))         # 0 (after)
+"
+```
+
 ## Where
 
-Calendar features in `src/features.py`. (Bonus: the holidays file itself marks the aftermath with
-an `Event` row, `Terremoto Manabi+15`.)
+`make_calendar_features(index)` in `src/features.py` emits the date-only `is_earthquake` flag
+(1 across 2016-04-16 → 2016-05-15). The rows are kept, not deleted, so the gap-free index from
+[`01-missing-calendar-days.md`](01-missing-calendar-days.md) stays intact. (Bonus: the holidays
+file itself marks the aftermath with an `Event` row, `Terremoto Manabi+15`.)
 
 **Lesson:** don't delete anomalies — *label* them. Give the model a flag so it can say "this was
 special" rather than treating the spike as normal behaviour.

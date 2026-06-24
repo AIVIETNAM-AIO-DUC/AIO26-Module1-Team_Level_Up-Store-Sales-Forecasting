@@ -58,7 +58,7 @@ with `uv run jupyter nbconvert --to notebook --execute --inplace notebooks/01_ed
 | 1 | Missing calendar days | ✅ Fixed | [data-traps/01](data-traps/01-missing-calendar-days.md) |
 | 2 | Oil gaps + 43 blanks | ⏳ Planned | [data-traps/02](data-traps/02-oil-gaps.md) |
 | 3 | Transferred/bridge holidays | ✅ Fixed | [data-traps/03](data-traps/03-holidays.md) |
-| 4 | 2016 earthquake spike | ⏳ Planned | [data-traps/04](data-traps/04-earthquake-anomaly.md) |
+| 4 | 2016 earthquake spike | ✅ Fixed | [data-traps/04](data-traps/04-earthquake-anomaly.md) |
 | 5 | New/sparse series | ⏳ Planned | [data-traps/05](data-traps/05-sparse-series.md) |
 | 6 | Transactions = past-only | ⚠️ Constraint | [data-traps/06](data-traps/06-transactions-past-only.md) |
 
