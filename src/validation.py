@@ -12,6 +12,7 @@ T036 (validate_submission).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -23,6 +24,15 @@ SERIES_KEY: list[str] = ["store_nbr", "family"]
 
 # The competition horizon is 16 days; the local holdout mirrors it exactly.
 HORIZON_DAYS: int = 16
+
+# Past-only feature sources for the base_lag guard (T029a): a feature derived from these may only
+# appear as a lag of >= HORIZON_DAYS days, never contemporaneously. onpromotion and oil are NOT
+# listed — they are knowable for the horizon, so they are used same-day and are exempt from the
+# guard (research R11; data-model.md).
+_LAGGED_SOURCES: tuple[str, ...] = ("sales", "transactions")
+# Matches the "lag_<N>" offset token embedded in lag/rolling feature names (e.g. "sales_lag_16",
+# "sales_roll_7_lag_16_mean"). N is the minimum offset (days back) the feature reads.
+_LAG_OFFSET_RE = re.compile(r"lag_(\d+)")
 
 # iteration_log.md lives at the repo root (src/ -> parents[1]).
 REPO_ROOT: Path = Path(__file__).resolve().parents[1]
@@ -104,6 +114,7 @@ def assert_no_leak(
     *,
     date_col: str = "date",
     strict: bool = False,
+    base_lag: int | None = None,
 ) -> None:
     """Assert no feature row is dated past the prediction boundary (no future leak).
 
@@ -119,15 +130,29 @@ def assert_no_leak(
 
     Timestamps are read from ``date_col`` if present, otherwise from a DatetimeIndex.
 
+    **``base_lag`` guard (T029a).** When ``base_lag`` is given, also check the *feature
+    columns*: every column derived from a past-only source (``sales``, ``transactions``)
+    must encode a ``lag_<N>`` offset with ``N >= base_lag``. This enforces the
+    direct-forecasting rule — the minimum sales-lag must be at least the horizon length, or
+    the far end of the horizon would need a value from inside the horizon (research R11;
+    see analyze/concepts/lag-horizon.md). A sales/transactions column that *looks* like a
+    lag/rolling feature but carries no parseable offset fails loudly rather than slipping
+    through. ``onpromotion`` and ``oil`` are exempt — they are knowable for the horizon and
+    used contemporaneously.
+
     Args:
         feature_df: Frame whose rows carry a date (column ``date_col`` or a datetime index).
         prediction_date: The cutoff. Rows must be ``<= prediction_date`` (``strict=False``)
             or ``< prediction_date`` (``strict=True``).
         date_col: Name of the date column to check; falls back to the index.
         strict: If True, require dates strictly before ``prediction_date``.
+        base_lag: If set, also assert every past-only lag/rolling feature column reads back
+            at least this many days. Pass ``HORIZON_DAYS`` (16) for direct forecasting.
 
     Raises:
-        AssertionError: If any row violates the boundary (with count + worst date).
+        AssertionError: If any row violates the date boundary (with count + worst date), or
+            (with ``base_lag``) if a past-only feature uses an offset ``< base_lag`` or
+            encodes no offset at all.
         KeyError: If no usable date column/index is found.
     """
     if date_col in feature_df.columns:
@@ -151,6 +176,44 @@ def assert_no_leak(
             f"Leak detected: {n} row(s) dated past the cutoff "
             f"(features must be {boundary} {cutoff.date()}; worst offender {worst})."
         )
+
+    if base_lag is not None:
+        _assert_base_lag(feature_df.columns, base_lag)
+
+
+def _assert_base_lag(columns: Sequence[str], base_lag: int) -> None:
+    """Assert every past-only lag/rolling feature column reads back >= ``base_lag`` days (T029a).
+
+    A column is "past-only" if its name starts with a source in ``_LAGGED_SOURCES`` (``sales`` /
+    ``transactions``) and looks like a lag/rolling feature (contains ``"lag"`` or ``"roll"``). Such
+    a column must encode at least one ``lag_<N>`` offset, and the smallest one must be ``>=
+    base_lag``. Columns from contemporaneous sources (``onpromotion``, ``oil``) never match and are
+    exempt by construction.
+
+    Raises:
+        AssertionError: If a past-only lag/rolling column encodes no offset, or its minimum
+            offset is below ``base_lag`` (the short lag that would break direct forecasting).
+    """
+    for col in columns:
+        name = str(col)
+        is_past_only = name.startswith(_LAGGED_SOURCES)
+        looks_laggy = ("lag" in name) or ("roll" in name)
+        if not (is_past_only and looks_laggy):
+            continue
+
+        offsets = [int(m) for m in _LAG_OFFSET_RE.findall(name)]
+        if not offsets:
+            raise AssertionError(
+                f"Feature '{name}' is a past-only ({'/'.join(_LAGGED_SOURCES)}) lag/rolling "
+                "feature but encodes no 'lag_<N>' offset, so its leak-safety can't be verified. "
+                "Name it with the anchor offset (e.g. 'sales_roll_7_lag_16_mean')."
+            )
+        if min(offsets) < base_lag:
+            raise AssertionError(
+                f"base_lag violation: feature '{name}' reads back {min(offsets)} day(s), "
+                f"but direct forecasting needs every sales/transactions lag >= {base_lag} "
+                "(the horizon length) — a shorter lag would require sales from inside the horizon."
+            )
 
 
 def train_holdout_split(

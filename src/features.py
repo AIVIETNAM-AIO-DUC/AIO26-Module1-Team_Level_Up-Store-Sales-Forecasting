@@ -38,6 +38,18 @@ PAYDAY_WINDOW_DAYS: int = 3
 _EARTHQUAKE_START: pd.Timestamp = pd.Timestamp("2016-04-16")
 _EARTHQUAKE_END: pd.Timestamp = pd.Timestamp("2016-05-15")
 
+# Lag/rolling constants (T029). Direct forecasting: predict all 16 horizon days at once, so every
+# sales-derived lag must reach back at least the horizon length (16 days). The last horizon day is
+# 16 days past the last real training day, so any sales-lag < 16 would need a value from inside the
+# horizon — i.e. a prediction, not real data. A uniform base_lag keeps every lag/rolling feature
+# leak-free with one model and no error compounding (research R11; analyze/concepts/lag-horizon.md).
+# Equals validation.HORIZON_DAYS (kept literal here to avoid an import cycle).
+BASE_LAG: int = 16
+_SERIES_KEY: tuple[str, str] = ("store_nbr", "family")
+DEFAULT_SALES_LAGS: tuple[int, ...] = (16, 17, 18)
+DEFAULT_ROLL_WINDOWS: tuple[int, ...] = (7, 14, 28)
+DEFAULT_TRANSACTIONS_LAGS: tuple[int, ...] = (16,)
+
 
 def make_deterministic_features(
     index: pd.DatetimeIndex,
@@ -334,4 +346,103 @@ def make_promotion_features(df: pd.DataFrame) -> pd.DataFrame:
     cols = ["store_nbr", "family", "date", "onpromotion"]
     out = df.loc[:, cols].copy()
     assert out["onpromotion"].notna().all(), "onpromotion has NaNs — expected contemporaneous."
+    return out.reset_index(drop=True)
+
+
+def make_lag_features(
+    df: pd.DataFrame,
+    transactions: pd.DataFrame | None = None,
+    *,
+    base_lag: int = BASE_LAG,
+    sales_lags: tuple[int, ...] = DEFAULT_SALES_LAGS,
+    roll_windows: tuple[int, ...] = DEFAULT_ROLL_WINDOWS,
+    transactions_lags: tuple[int, ...] = DEFAULT_TRANSACTIONS_LAGS,
+    key: tuple[str, str] = _SERIES_KEY,
+    date_col: str = "date",
+    target_col: str = "sales",
+) -> pd.DataFrame:
+    """Build leak-safe lag/rolling features via **direct forecasting** (research R11; FR-009).
+
+    All features come from *past* ``sales`` (and optionally *lagged* ``transactions``) and obey one
+    rule: **every sales-derived offset is at least ``base_lag`` (16) days**. Because the last
+    horizon day is 16 days past the last real training day, any shorter lag would need a value from
+    inside the horizon — a prediction, not real data. Anchoring everything at ``shift(base_lag)``
+    keeps the whole 16-day horizon computable from real data with one model and no error compounding
+    (see analyze/concepts/lag-horizon.md). The complementary ``base_lag`` guard lives in
+    :func:`validation.assert_no_leak` (T029a).
+
+    Features (per ``(store_nbr, family)`` series, computed on the gap-free daily index so a lag of
+    *N rows* is exactly *N days*):
+
+    - ``sales_lag_{L}`` for each ``L`` in ``sales_lags`` — the sales value ``L`` days ago.
+    - ``sales_roll_{W}_lag_{base_lag}_mean`` for each ``W`` in ``roll_windows`` — mean of the ``W``
+      days ending at ``shift(base_lag)`` (so the *newest* day in every window is still ``base_lag``
+      days back). The ``lag_{base_lag}`` token in the name lets :func:`validation.assert_no_leak`
+      verify the anchor offset without inspecting the data (T029a).
+    - ``transactions_lag_{L}`` for each ``L`` in ``transactions_lags`` — only if ``transactions`` is
+      given. ``transactions`` is **past-only** (no test file), so it may appear *only* as a lag
+      (analyze/data-traps/06-transactions-past-only.md). Closed store-days (absent from
+      ``transactions.csv``) are treated as 0 before lagging.
+
+    ``onpromotion`` is deliberately **absent** here — it is provided for the horizon, so it is used
+    contemporaneously by :func:`make_promotion_features`, not lagged.
+
+    Early rows of each series (before enough history exists) carry ``NaN`` — expected, and handled
+    downstream (dropped for the linear fit, or tolerated by the tree booster). The frame must be
+    gap-free per series (e.g. from :func:`data.reindex_series_gapfree`) or row-based lags slip.
+
+    Args:
+        df: Gap-free sales frame with at least ``key``, ``date_col``, ``target_col``.
+        transactions: Optional frame from :func:`data.load_transactions`
+            (``store_nbr``, ``date``, ``transactions``). If ``None``, no transaction features.
+        base_lag: Minimum legal sales-lag and the rolling anchor. Defaults to 16 (the horizon).
+        sales_lags: Sales-lag offsets to emit; each must be ``>= base_lag``.
+        roll_windows: Rolling-mean window lengths, all anchored at ``shift(base_lag)``.
+        transactions_lags: Transaction-lag offsets; each must be ``>= base_lag``.
+        key: Series key. Defaults to ``("store_nbr", "family")``.
+        date_col: Date column name. Defaults to ``"date"``.
+        target_col: Target column name. Defaults to ``"sales"``.
+
+    Returns:
+        A tidy frame ``[*key, date]`` plus one column per requested lag/rolling feature, one row
+        per series-day, row-aligned to a date-sorted view of ``df``.
+
+    Raises:
+        AssertionError: If any requested sales/transaction offset is ``< base_lag`` (the
+            direct-forecasting rule), guarding against a short lag slipping in.
+    """
+    keys = list(key)
+    assert min(sales_lags) >= base_lag, (
+        f"sales_lags {sales_lags} must all be >= base_lag ({base_lag}) — a shorter lag cannot be "
+        "computed for the far end of the horizon without using predicted sales."
+    )
+    if transactions is not None:
+        assert min(transactions_lags) >= base_lag, (
+            f"transactions_lags {transactions_lags} must all be >= base_lag ({base_lag}) — "
+            "transactions are past-only and unknown across the horizon."
+        )
+
+    df = df.sort_values(keys + [date_col])
+    out = df[keys + [date_col]].copy()
+    sales_by_series = df.groupby(keys, observed=True)[target_col]
+
+    for lag in sales_lags:
+        out[f"sales_lag_{lag}"] = sales_by_series.shift(lag)
+
+    # Rolling means anchored at shift(base_lag); grouped so windows never span two series.
+    # The lag_{base_lag} token in the name encodes the anchor offset for the T029a leak guard.
+    for window in roll_windows:
+        out[f"sales_roll_{window}_lag_{base_lag}_mean"] = sales_by_series.transform(
+            lambda s, w=window: s.shift(base_lag).rolling(w).mean()
+        )
+
+    if transactions is not None:
+        tx = transactions[["store_nbr", date_col, "transactions"]]
+        merged = df[keys + [date_col]].merge(tx, on=["store_nbr", date_col], how="left")
+        merged["transactions"] = merged["transactions"].fillna(0)
+        merged = merged.sort_values(keys + [date_col])
+        tx_by_series = merged.groupby(keys, observed=True)["transactions"]
+        for lag in transactions_lags:
+            out[f"transactions_lag_{lag}"] = tx_by_series.shift(lag).to_numpy()
+
     return out.reset_index(drop=True)
