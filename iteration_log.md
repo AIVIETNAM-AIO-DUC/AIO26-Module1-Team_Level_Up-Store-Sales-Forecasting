@@ -8,3 +8,4 @@ Populated by `src.validation.log_iteration`.
 | Stage / technique added | Holdout RMSLE | Δ vs previous best | Notes |
 |-------------------------|---------------|--------------------|-------|
 | baseline: seasonal-naive (weekly) | 0.61704 | - | same-weekday-prior-week; repeats last training week over 16-day horizon |
+| deterministic: trend + weekly/annual Fourier (LinearRegression) | 0.62188 | +0.00484 (worse) | per-series fit on active history; annual dropped for <1yr series; log1p space |

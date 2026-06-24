@@ -19,8 +19,40 @@ On a full daily calendar this is **529 holes** (43 blanks + 486 missing days) �
 
 ## Why it quietly hurts
 
-Join oil onto the daily calendar naively and those holes become `NaN` features — or worse, get
-filled from the **future**, which leaks (see [`../concepts/leakage.md`](../concepts/leakage.md)).
+Join oil onto the daily calendar naively and the holes go down one of two bad paths.
+
+**Path A — leave the gaps as `NaN` ("NaN features")**
+- Many estimators just crash on `NaN` (linear models, plain sklearn pipelines).
+- Tree boosters (LightGBM / XGBoost) tolerate `NaN` but only route it down a default branch — they
+  get **no real signal from oil** on that day. With ~529 holes in a ~1700-day calendar, roughly a
+  third of rows have no oil information.
+- `NaN` propagates. Any derived feature — `oil_lag7`, `oil_roll14_mean`, `oil_diff` — that touches
+  a gap row inherits the `NaN`, so one missing day silently produces many missing feature values
+  downstream.
+
+So `NaN` features are *honest but weak*: the model just has less to learn from.
+
+**Path B — naive fill ("or worse, filled from the future")**
+
+"Naive" fills usually peek forward:
+- `interpolate()` averages the value *before* and *after* the gap — and "after" is tomorrow.
+- `bfill()` literally copies tomorrow's price into today.
+- `fillna(df['oil'].mean())` computed over the full table bakes the test-period mean into training
+  rows.
+
+Each of these uses information that didn't exist yet on the date being filled. The model trains on
+a feature it could never honestly have at inference time → validation looks great, real
+out-of-sample performance won't match. That's the leak (see
+[`../concepts/leakage.md`](../concepts/leakage.md)).
+
+| Strategy                 | Looks at         | Honest? | Cost                                              |
+|--------------------------|------------------|---------|---------------------------------------------------|
+| Leave as `NaN`           | Nothing          | Yes     | Lost signal; `NaN` spreads through derived features |
+| `interpolate` / `bfill`  | Past + **future**| **No (leak)** | Inflated CV; silent overfitting                |
+| Forward-fill (the fix)   | Past only        | Yes     | None — uses the last value the calendar would actually have known |
+
+So `NaN` is the "worse weak signal" path, future-fill is the "worse leak" path, and forward-fill
+(below) is the one that avoids both.
 
 ## The fix
 

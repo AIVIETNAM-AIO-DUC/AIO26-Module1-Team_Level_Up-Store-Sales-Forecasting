@@ -148,6 +148,16 @@ expm1(x) = eˣ − 1            →   inverse of log1p, returns real sales
 ## Two rules this forces on every model
 
 **Rule 1 — Train in log space.**
+- **What "log space" means:** "space" is just shorthand for *which set of numbers you're working
+  with right now*. The pipeline has two:
+
+  | Space      | Values         | Example (sales = 0, 1, 50, 1000)   |
+  |------------|----------------|------------------------------------|
+  | Raw space  | `y` (sales)    | `0, 1, 50, 1000`                   |
+  | Log space  | `log1p(y)`     | `0.000, 0.693, 3.932, 6.908`       |
+
+  `log1p` is the door in, `expm1` is the door out. Inside log space you fit the model, generate
+  predictions, and compute the loss; `expm1` carries you back to real sales at the end.
 - **Why:** training minimizes whatever loss you give it. If the leaderboard measures *log* error,
   you want the model optimizing *log* error too — otherwise you're optimizing one thing and
   scored on another.

@@ -13,9 +13,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 
-from .validation import HORIZON_DAYS, SERIES_KEY
+from .features import (
+    ANNUAL_FOURIER_ORDER,
+    WEEKLY_FOURIER_ORDER,
+    make_deterministic_features,
+)
+from .validation import HORIZON_DAYS, SERIES_KEY, clip_nonneg
 
 # A weekly season: the dominant cycle in daily retail sales (research R2 / EDA Section 4).
 SEASON_LENGTH: int = 7
@@ -100,3 +108,210 @@ def seasonal_naive_predict(
         .reset_index(drop=True)
     )
     return preds[key + [date_col, "sales_pred"]]
+
+
+class DeterministicModel:
+    """Trend + Fourier-seasonality model: one ``LinearRegression`` per series, in log space.
+
+    Stage 2 of the teaching progression. The features
+    (:func:`features.make_deterministic_features`) depend only on the calendar date, so they
+    are identical across every series on a given day. A single global regression on date-only
+    features would therefore predict the same value for all 1,782 series — useless. We fit a
+    **separate** ``LinearRegression`` per ``(store_nbr, family)`` series on the shared date
+    basis, so each series gets its own level, trend slope, and weekly/annual amplitude (Kaggle
+    course "Trend"/"Seasonality" lessons; research R3). (For *full-history* series this is
+    numerically identical to one multi-output fit — OLS per column — so nothing is lost; the
+    per-series loop only lets us handle ragged histories, below.)
+
+    **Two data realities make a naive fit explode — both handled here:**
+
+    1. *Leading-zero blocks.* Many series carry ``sales = 0`` from 2013-01-01 until the store
+       opened. A single linear trend through ``[dead zeros → active sales]`` is a step the
+       smooth basis cannot represent, and least-squares overshoots wildly (predicting tens of
+       thousands for a series whose max is a few thousand — even *in-sample*). Fix: each series
+       is fit only on its **active history**, from its first non-zero day to the end. Interior
+       zeros (closed Sundays/holidays) are kept — they are real signal.
+    2. *Short histories.* A store that opened < 1 year before the cutoff cannot identify an
+       **annual** cycle (the yearly sin/cos columns barely vary over a few months, so their
+       coefficients blow up and extrapolate insanely). Fix: drop the annual Fourier terms for
+       any series whose active span is shorter than ``min_days_for_annual``; it keeps trend +
+       weekly seasonality, which a few months *can* support.
+
+    A residual linear-trend overshoot remains for a handful of plateaued long-trending series
+    (a linear trend keeps rising) — this is the honest behaviour of a deterministic model, not
+    a defect, and it is bounded (no clip hack). Series with **no** sales at all predict 0 (the
+    natural near-zero fallback; research R8). On the 16-day holdout this model lands roughly at
+    parity with the seasonal-naive baseline: deterministic-only is a fair but modest stage;
+    the large gains arrive with lags / promotions / holidays / the hybrid (Stages 3–4).
+
+    Modeled in ``log1p`` space, inverted with ``expm1``, predictions clipped to ``>= 0``
+    (FR-004, Constitution IV). Leak-safe: features are a pure function of the date, and
+    :meth:`predict` builds the horizon features on the contiguous ``train ∪ horizon`` index
+    (so the trend counter continues), then keeps only the future rows — no past sales leak in.
+    Granularity here is implicitly per-series; the global-vs-per-group *decision* is a separate
+    Stage-4 concern (R9 / T033).
+
+    Typical use::
+
+        model = DeterministicModel().fit(train)
+        preds = model.predict()          # tidy [*key, date, sales_pred] over the 16-day horizon
+    """
+
+    def __init__(
+        self,
+        *,
+        trend_order: int = 1,
+        weekly_order: int = WEEKLY_FOURIER_ORDER,
+        annual_order: int = ANNUAL_FOURIER_ORDER,
+        min_days_for_annual: int = 365,
+        key: Sequence[str] = SERIES_KEY,
+        date_col: str = "date",
+        target_col: str = "sales",
+    ) -> None:
+        """Configure the deterministic basis and the series/date/target column names.
+
+        Args:
+            trend_order: Polynomial trend order passed to the feature builder (1 = linear).
+                Defaults to 1; a clip-free holdout sweep showed dropping the trend underfits
+                genuinely-trending series badly.
+            weekly_order: Number of weekly Fourier harmonics. Defaults to the EDA-backed 3.
+            annual_order: Number of annual Fourier harmonics. Defaults to the EDA-backed 4.
+            min_days_for_annual: A series needs at least this many days of active history for
+                its annual Fourier terms to be identifiable; shorter series are fit with trend
+                + weekly only. Defaults to 365 (one year).
+            key: Columns identifying a series. Defaults to (store_nbr, family).
+            date_col: Name of the daily date column.
+            target_col: Name of the observed-sales column to model.
+        """
+        self.trend_order = trend_order
+        self.weekly_order = weekly_order
+        self.annual_order = annual_order
+        self.min_days_for_annual = min_days_for_annual
+        self.key = list(key)
+        self.date_col = date_col
+        self.target_col = target_col
+
+        # Per-series fitted models: col -> (LinearRegression, uses_annual) or None (all-zero).
+        self._models: dict[object, tuple[LinearRegression, bool] | None] = {}
+        self._series_columns: pd.Index | None = None
+        self._train_index: pd.DatetimeIndex | None = None
+        self._annual_cols: list[str] = []
+
+    def _features(self, index: pd.DatetimeIndex) -> pd.DataFrame:
+        """Build the deterministic feature table for ``index`` with this model's fixed orders.
+
+        Centralizing this guarantees ``fit`` and ``predict`` use identical Fourier orders, so
+        the column set always matches (mismatched columns would make sklearn error or
+        misalign).
+        """
+        return make_deterministic_features(
+            index,
+            trend_order=self.trend_order,
+            weekly_order=self.weekly_order,
+            annual_order=self.annual_order,
+        )
+
+    def fit(self, train: pd.DataFrame) -> DeterministicModel:
+        """Fit one linear model per series on its active history (see class docstring).
+
+        Args:
+            train: A gap-free reindexed sales frame with ``key``, ``date_col``, and
+                ``target_col`` (e.g. the ``train`` half of
+                :func:`validation.train_holdout_split`, or the full history before forecasting
+                the real test horizon).
+
+        Returns:
+            ``self`` (fitted), so calls can be chained.
+
+        Raises:
+            AssertionError: If the wide pivot has any missing cells — i.e. the series do not
+                form a complete date × series grid. Pass gap-free reindexed data (T006) so
+                every series spans the same calendar (closed days are zeros, not gaps).
+        """
+        wide = train.pivot_table(
+            index=self.date_col, columns=self.key, values=self.target_col
+        )
+
+        n_missing = int(wide.isna().sum().sum())
+        assert n_missing == 0, (
+            f"Wide sales matrix has {n_missing} missing cell(s) — series do not form a "
+            "complete date × series grid. Pass gap-free reindexed data "
+            "(reindex_series_gapfree, T006)."
+        )
+
+        self._series_columns = wide.columns
+        self._train_index = pd.DatetimeIndex(wide.index)
+
+        x_full = self._features(self._train_index)
+        self._annual_cols = [c for c in x_full.columns if "YE" in c]
+        x_noannual = x_full.drop(columns=self._annual_cols)
+
+        self._models = {}
+        for col in wide.columns:
+            y = wide[col]
+            nonzero = y[y > 0]
+            if nonzero.empty:
+                self._models[col] = None  # never sold → predict 0 (near-zero fallback, R8)
+                continue
+
+            active = self._train_index >= nonzero.index.min()
+            uses_annual = int(active.sum()) >= self.min_days_for_annual
+            x = x_full if uses_annual else x_noannual
+
+            model = LinearRegression().fit(
+                x.loc[active], np.log1p(y[active].to_numpy(dtype=np.float64))
+            )
+            self._models[col] = (model, uses_annual)
+        return self
+
+    def predict(self, horizon: int = HORIZON_DAYS) -> pd.DataFrame:
+        """Predict the next ``horizon`` days for every fitted series, in raw sales units.
+
+        Builds the horizon's deterministic features on the contiguous ``train ∪ horizon``
+        index (continuing the trend counter), keeps the future rows, predicts each series with
+        its own fitted model in log space, inverts with ``expm1``, and clips to ``>= 0``.
+
+        Args:
+            horizon: Number of future days to predict. Defaults to 16 (the competition
+                horizon / local holdout length).
+
+        Returns:
+            A tidy frame ``[*key, date, sales_pred]`` with one row per series × forecast day
+            (1,782 × 16 = 28,512 rows), matching :func:`seasonal_naive_predict` so both can
+            be scored the same way. ``date`` runs from the day after training ends.
+
+        Raises:
+            RuntimeError: If called before :meth:`fit`.
+        """
+        if self._train_index is None or self._series_columns is None:
+            raise RuntimeError("DeterministicModel.predict called before fit.")
+
+        last_date = self._train_index.max()
+        future = pd.date_range(last_date + pd.Timedelta(days=1), periods=horizon, freq="D")
+
+        # train ∪ horizon is contiguous, so the trend counter continues and the gap-free
+        # assert inside the feature builder will not false-trip; keep only the future rows.
+        combined = self._train_index.append(future)
+        x_future_full = self._features(combined).loc[future]
+        x_future_noannual = x_future_full.drop(columns=self._annual_cols)
+
+        preds: dict[object, npt.NDArray] = {}
+        for col, fitted in self._models.items():
+            if fitted is None:
+                preds[col] = np.zeros(horizon, dtype=np.float64)
+                continue
+            model, uses_annual = fitted
+            x = x_future_full if uses_annual else x_future_noannual
+            preds[col] = clip_nonneg(np.expm1(model.predict(x)))
+
+        pred_wide = pd.DataFrame(
+            preds, index=pd.Index(future, name=self.date_col), columns=self._series_columns
+        )
+        tidy = (
+            pred_wide.stack(self.key, future_stack=True)
+            .rename("sales_pred")
+            .reset_index()
+            .sort_values(self.key + [self.date_col])
+            .reset_index(drop=True)
+        )
+        return tidy[self.key + [self.date_col, "sales_pred"]]

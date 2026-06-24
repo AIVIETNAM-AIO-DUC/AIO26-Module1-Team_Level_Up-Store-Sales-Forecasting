@@ -2,8 +2,10 @@ title: Store Sales Forecasting — Interactive Learner's Guide
 description: A learner's guide to time-series forecasting on the Corporación Favorita dataset.
 
 # Project Pages site lives at https://nqnguyen86.github.io/learning-time-series/
-baseurl: "/AIO26-Module1-Team_Level_Up-Store-Sales-Forecasting"
-url: "https://aivietnam-aio-duc.github.io"
+baseurl: "/learning-time-series"
+url: "https://nqnguyen86.github.io"
+#baseurl: "/AIO26-Module1-Team_Level_Up-Store-Sales-Forecasting"
+#url: "https://aivietnam-aio-duc.github.io"
 
 # Build settings
 markdown: kramdown
