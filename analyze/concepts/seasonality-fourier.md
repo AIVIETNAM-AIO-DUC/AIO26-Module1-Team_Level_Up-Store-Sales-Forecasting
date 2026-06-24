@@ -73,6 +73,23 @@ From **statsmodels**:
 computable for *any* future day and extend straight into the 16-day horizon. (Contrast a lag
 feature, which needs actual past sales — see [lag-horizon.md](lag-horizon.md).)
 
+![Deterministic features: const + trend + weekly Fourier + annual Fourier](fourier-terms.png)
+
+Reading the figure, panel by panel:
+
+1. **Weekly Fourier** — `order=3` gives 3 sin/cos pairs (6 columns), each repeating exactly every
+   7 days. Higher harmonics oscillate faster to carve sharper shapes.
+2. **Annual Fourier** — `order=4` gives 4 pairs (8 columns), slow waves bending across the year.
+   These are the terms dropped for series with under a year of history (one cycle can't be
+   identified — they blow up otherwise).
+3. **Weighted sum** — the model learns one weight per column; summing the weekly columns reproduces
+   a repeating weekly curve (dotted lines mark week boundaries). That's how a *linear* model fits a
+   *curved, periodic* shape: it's just a linear combination of ready-made waves.
+4. **const + trend** — the non-periodic part: `const` (a baseline level) and `trend` (1, 2, 3, …,
+   capturing long-run drift). Fourier handles the *repeating* part; trend handles the *drifting* part.
+
+Everything adds up (in log space): `sales ≈ const + trend + Σ weekly + Σ annual`.
+
 ## "Out of phase" — why gaps wreck this
 
 **Phase** = where you are in the cycle. The sin/cos value is computed from the row's **position**,
