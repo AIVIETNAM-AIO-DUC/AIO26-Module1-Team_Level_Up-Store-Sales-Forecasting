@@ -315,3 +315,156 @@ class DeterministicModel:
             .reset_index(drop=True)
         )
         return tidy[self.key + [self.date_col, "sales_pred"]]
+
+
+class LinearFeatureModel:
+    """Per-series ``LinearRegression`` on a **prebuilt** feature matrix (Stage 3).
+
+    Generalizes :class:`DeterministicModel`'s per-series loop to any set of feature columns —
+    the deterministic basis (trend + Fourier) *plus* holiday / calendar / promotion / oil / lag
+    features composed by the caller. Keeping feature *building* in the notebook (one tidy matrix
+    via the ``features`` builders) and the *fit* here lets us add feature groups "one at a time"
+    and re-score, without this class coupling to holidays/stores/oil/transactions.
+
+    Granularity is **per-series** by design: the global-vs-per-group decision is a separate Stage-4
+    concern (R9 / T033), and per-series is the per-group arm that decision will benchmark. The same
+    two ragged-history defenses as Stage 2 apply, plus one the lag features introduce:
+
+    1. *Leading-zero blocks* — each series is fit only on its **active history** (from its first
+       non-zero sales day); interior closed-day zeros are kept.
+    2. *Short histories* — annual Fourier columns (those whose name contains ``annual_marker``) are
+       dropped for series with under ``min_days_for_annual`` active days, where they're
+       unidentifiable.
+    3. *Lag warm-up NaNs* — the first rows of each series have undefined lag/rolling features; rows
+       with **any** NaN feature are dropped *at fit*. Prediction rows (the 16-day horizon) are
+       fully populated and must contain no NaN (asserted in :meth:`predict`).
+
+    Modeled in ``log1p`` space, inverted with ``expm1``, clipped to ``>= 0``. Leak-safety is the
+    caller's responsibility (build features once over the full history, split by date, and run
+    :func:`validation.assert_no_leak` with ``base_lag``); this class only fits and predicts.
+
+    Typical use::
+
+        model = LinearFeatureModel(feature_cols).fit(train_matrix)
+        preds = model.predict(horizon_matrix)   # tidy [*key, date, sales_pred]
+    """
+
+    def __init__(
+        self,
+        feature_cols: Sequence[str],
+        *,
+        min_days_for_annual: int = 365,
+        annual_marker: str = "YE",
+        key: Sequence[str] = SERIES_KEY,
+        date_col: str = "date",
+        target_col: str = "sales",
+    ) -> None:
+        """Configure which columns are features and the series/date/target column names.
+
+        Args:
+            feature_cols: The feature column names to fit on (order is preserved and reused at
+                predict time so coefficients stay aligned).
+            min_days_for_annual: Minimum active days for a series to keep annual Fourier columns.
+                Defaults to 365.
+            annual_marker: Substring identifying annual Fourier columns to drop for short series.
+                Defaults to ``"YE"`` (statsmodels' year-end CalendarFourier names).
+            key: Columns identifying a series. Defaults to (store_nbr, family).
+            date_col: Name of the daily date column.
+            target_col: Name of the observed-sales column to model.
+        """
+        self.feature_cols = list(feature_cols)
+        self.min_days_for_annual = min_days_for_annual
+        self.annual_cols = [c for c in self.feature_cols if annual_marker in c]
+        self.key = list(key)
+        self.date_col = date_col
+        self.target_col = target_col
+
+        # series-key -> (LinearRegression, uses_annual) or None (all-zero / no usable rows).
+        self._models: dict[object, tuple[LinearRegression, bool] | None] = {}
+
+    def _cols_for(self, uses_annual: bool) -> list[str]:
+        """Feature columns for a series, dropping annual Fourier terms when not identifiable."""
+        if uses_annual:
+            return self.feature_cols
+        return [c for c in self.feature_cols if c not in self.annual_cols]
+
+    def fit(self, train: pd.DataFrame) -> LinearFeatureModel:
+        """Fit one linear model per series on its active, NaN-free history.
+
+        Args:
+            train: Tidy frame ``[*key, date, target, *feature_cols]`` (gap-free per series),
+                covering only the dates to train on (e.g. rows before the holdout start).
+
+        Returns:
+            ``self`` (fitted), so calls can be chained.
+        """
+        self._models = {}
+        for series_key, g in train.groupby(self.key, observed=True):
+            g = g.sort_values(self.date_col)
+            y = g[self.target_col].to_numpy(dtype=np.float64)
+
+            nonzero = np.flatnonzero(y > 0)
+            if nonzero.size == 0:
+                self._models[series_key] = None  # never sold → predict 0 (R8)
+                continue
+
+            first = int(nonzero[0])
+            active_days = len(y) - first
+            uses_annual = active_days >= self.min_days_for_annual
+            cols = self._cols_for(uses_annual)
+
+            x = g.iloc[first:][cols]
+            y_active = y[first:]
+            keep = x.notna().all(axis=1).to_numpy()  # drop lag warm-up NaN rows
+            x, y_active = x.loc[keep], y_active[keep]
+
+            if len(x) == 0:
+                self._models[series_key] = None
+                continue
+
+            model = LinearRegression().fit(x, np.log1p(y_active))
+            self._models[series_key] = (model, uses_annual)
+        return self
+
+    def predict(self, future: pd.DataFrame) -> pd.DataFrame:
+        """Predict for every row of ``future`` using each series' fitted model, in raw sales units.
+
+        Args:
+            future: Tidy frame ``[*key, date, *feature_cols]`` for the rows to predict (e.g. the
+                16-day holdout/horizon). Feature columns must be fully populated (no NaN).
+
+        Returns:
+            A tidy frame ``[*key, date, sales_pred]``, one row per input row, sorted by series/date.
+
+        Raises:
+            RuntimeError: If called before :meth:`fit`.
+            AssertionError: If any feature value is NaN (horizon rows must be fully known).
+        """
+        if not self._models:
+            raise RuntimeError("LinearFeatureModel.predict called before fit.")
+
+        parts: list[pd.DataFrame] = []
+        for series_key, g in future.groupby(self.key, observed=True):
+            g = g.sort_values(self.date_col)
+            fitted = self._models.get(series_key)
+
+            if fitted is None:
+                pred = np.zeros(len(g), dtype=np.float64)
+            else:
+                model, uses_annual = fitted
+                x = g[self._cols_for(uses_annual)]
+                assert x.notna().all().all(), (
+                    f"NaN feature(s) for series {series_key} at prediction time — horizon "
+                    "features must be fully populated (check lag warm-up / merges)."
+                )
+                pred = clip_nonneg(np.expm1(model.predict(x)))
+
+            out = g[self.key + [self.date_col]].copy()
+            out["sales_pred"] = pred
+            parts.append(out)
+
+        return (
+            pd.concat(parts, ignore_index=True)
+            .sort_values(self.key + [self.date_col])
+            .reset_index(drop=True)
+        )

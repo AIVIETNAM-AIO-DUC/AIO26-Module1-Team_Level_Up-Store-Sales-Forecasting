@@ -16,6 +16,8 @@ real CSVs with `uv run`.
   first holdout score and the floor every later model must beat.
 - **`deterministic/`** — what the deterministic notebook (`notebooks/03_deterministic.ipynb`)
   produced: the first *learned* model (trend + Fourier) and how it compares to that floor.
+- **`features/`** — what the feature notebook (`notebooks/04_features.ipynb`) produced: adding
+  holidays, calendar, promotions/oil, and lags one at a time, and which techniques earned the margin.
 
 ## Suggested reading order
 
@@ -30,6 +32,7 @@ real CSVs with `uv run`.
 9. `concepts/honest-rules.md` — the five disciplines that keep the scoreboard trustworthy
 10. `baseline/01-seasonal-naive.md` — the first real score (RMSLE 0.617) and the bar to beat
 11. `deterministic/01-trend-fourier.md` — the first learned model (RMSLE 0.622, parity with the bar)
+12. `features/01-feature-model.md` — features added one at a time (RMSLE 0.510, ~17% past the bar)
 
 ## Appendix A — Reproduce the numbers yourself
 
