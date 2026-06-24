@@ -59,9 +59,53 @@ So `NaN` is the "worse weak signal" path, future-fill is the "worse leak" path, 
 Build a continuous daily calendar, left-join oil, then **forward-fill** — carry the *last known*
 price forward into each gap. A single leading **back-fill** covers the very first blank day.
 
-- Forward-fill only ever looks **backward**, so it's leak-free.
-- **Interpolation is rejected**: it averages the value *before* and *after* a gap, and "after" is
-  the future — using it to fill today's feature lets the model peek ahead.
+### Why forward-fill is leak-free — read the name carefully
+
+The name "forward-fill" is misleading. "Forward" describes the direction the known value is
+*carried into the gap*, **not** the direction the algorithm *searches* for a value. The search
+actually walks **backward in time**.
+
+Concretely, with a tiny gap:
+
+```
+date:   Mon    Tue   Wed   Thu   Fri
+oil:   100.0   NaN   NaN   NaN  102.0
+```
+
+To fill Thursday's `NaN`, `ffill` walks:
+
+```
+Thursday is NaN → need a value.
+   step 1: check Wednesday → NaN, keep going.
+   step 2: check Tuesday   → NaN, keep going.
+   step 3: check Monday    → 100.0. Done. Copy 100.0 into Thursday.
+```
+
+The search walked Thu → Wed → Tue → Mon — backward through the calendar. Call that direction
+**backward lookup**.
+
+The identity to remember:
+
+```
+forward-fill  =  backward lookup   ← reads past values only   → LEAK-FREE
+back-fill     =  forward  lookup   ← reads future values      → LEAKS
+```
+
+The "forward" in *forward-fill* refers to the value flowing forward in time *into* the gap; the
+*lookup* itself is backward. Two arrows pointing opposite ways inside the same operation — that's
+where the name trips people up.
+
+Why only backward lookup is leak-free: on Thursday in real life, Monday/Tuesday/Wednesday have
+already happened, so you genuinely know those prices — using them to fill Thursday is honest.
+Friday hasn't happened yet, so copying Friday into Thursday (which is what `bfill` does) means the
+model trains on a value it won't actually have at inference time. That's the leak.
+
+- **Interpolation is rejected for the same reason**: it averages the value *before* and *after* a
+  gap, and "after" is the future — using it to fill today's feature lets the model peek ahead.
+- The single leading `bfill` on line 60 is the one allowed exception: the very first day of the
+  dataset has nothing before it to look back to, and that day is never used as a training target
+  in any honest split (you have no prior history to learn from on day 1 anyway), so the leak has
+  nothing to leak *into*.
 
 ## Verify
 
