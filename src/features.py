@@ -93,3 +93,98 @@ def make_deterministic_features(
         drop=drop,
     )
     return dp.in_sample()
+
+
+def effective_holiday_calendar(holidays: pd.DataFrame) -> pd.DataFrame:
+    """Resolve ``holidays_events.csv`` into an *effective* dated calendar (research R6).
+
+    The raw table is **not** a yes/no holiday flag (see
+    analyze/data-traps/03-holidays.md). Two corrections turn it into one:
+
+    1. **Drop transferred ghosts.** A row with ``transferred = True`` means the holiday
+       did *not* happen on its listed date — it was officially moved, and a separate
+       ``type = "Transfer"`` row carries the date it was actually observed. Dropping the
+       ``transferred`` rows keeps only dates where something real happened.
+    2. **Classify the effect.** Most surviving types (Holiday / Transfer / Bridge /
+       Additional / Event) are days off → ``effect = "holiday"``. A ``Work Day`` row is
+       the *opposite* — a normally-off day the government made into a working one → it is
+       tagged ``effect = "work_day"`` so it never leaks into the holiday flag.
+
+    Args:
+        holidays: The raw frame from :func:`data.load_holidays` with columns ``date``,
+            ``type``, ``locale``, ``locale_name``, ``description``, ``transferred``.
+
+    Returns:
+        The de-ghosted calendar — one row per surviving (date, locale-scoped) entry —
+        with the original columns plus an ``effect`` column (``"holiday"`` or
+        ``"work_day"``). ``type`` is retained so a later feature can still distinguish
+        moved vs fixed-date holidays if needed. Locale scoping happens downstream in
+        :func:`make_holiday_features`.
+    """
+    eff = holidays.loc[~holidays["transferred"]].copy()
+    eff["effect"] = "holiday"
+    eff.loc[eff["type"] == "Work Day", "effect"] = "work_day"
+    return eff.reset_index(drop=True)
+
+
+def make_holiday_features(holidays: pd.DataFrame, stores: pd.DataFrame) -> pd.DataFrame:
+    """Build per-``(store_nbr, date)`` holiday indicator features (research R6; FR-009).
+
+    Starts from :func:`effective_holiday_calendar`, then **scopes each entry by locale**
+    so a holiday only touches the stores it actually applies to (see
+    analyze/data-traps/03-holidays.md):
+
+    - **National** → every store (cross join);
+    - **Regional** → stores whose ``state`` matches ``locale_name``;
+    - **Local** → stores whose ``city`` matches ``locale_name`` (typically 1-2 stores).
+
+    Applying a local festival to all 54 stores would pair ``is_holiday = 1`` with normal
+    sales elsewhere and teach the model the flag means nothing — locale scoping prevents
+    that. Every feature here depends only on the calendar date and known store metadata,
+    so all are knowable in advance and safe for the forecast horizon (no leakage).
+
+    The result holds **only the store-days that carry an event**. Callers left-join it
+    onto the gap-free series grid by ``(store_nbr, date)`` and fill the absent rows with
+    0 (an ordinary day).
+
+    Args:
+        holidays: Raw frame from :func:`data.load_holidays`.
+        stores: Store metadata from :func:`data.load_stores` (needs ``store_nbr``,
+            ``city``, ``state``).
+
+    Returns:
+        A tidy frame ``[store_nbr, date, is_holiday, is_work_day, is_national_holiday]``,
+        one row per affected store-day, flags in ``{0, 1}`` (``int8``). Multiple events
+        on the same store-day collapse via max, so each flag is 1 if *any* matching event
+        sets it.
+    """
+    eff = effective_holiday_calendar(holidays)
+    keep = ["date", "locale", "effect"]
+
+    national = eff.loc[eff["locale"] == "National", keep].merge(
+        stores[["store_nbr"]], how="cross"
+    )
+    regional = eff.loc[eff["locale"] == "Regional", [*keep, "locale_name"]].merge(
+        stores[["store_nbr", "state"]], left_on="locale_name", right_on="state"
+    )
+    local = eff.loc[eff["locale"] == "Local", [*keep, "locale_name"]].merge(
+        stores[["store_nbr", "city"]], left_on="locale_name", right_on="city"
+    )
+
+    expanded = pd.concat(
+        [national, regional, local], ignore_index=True
+    )[["store_nbr", "date", "locale", "effect"]]
+
+    expanded["is_holiday"] = (expanded["effect"] == "holiday").astype("int8")
+    expanded["is_work_day"] = (expanded["effect"] == "work_day").astype("int8")
+    expanded["is_national_holiday"] = (
+        (expanded["effect"] == "holiday") & (expanded["locale"] == "National")
+    ).astype("int8")
+
+    flags = ["is_holiday", "is_work_day", "is_national_holiday"]
+    return (
+        expanded.groupby(["store_nbr", "date"], as_index=False)[flags]
+        .max()
+        .sort_values(["store_nbr", "date"])
+        .reset_index(drop=True)
+    )

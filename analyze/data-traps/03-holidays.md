@@ -1,4 +1,4 @@
-# Trap 3 — Holidays aren't a simple yes/no (domain modeling)  ⏳ FIX PLANNED
+# Trap 3 — Holidays aren't a simple yes/no (domain modeling)  ✅ FIXED
 
 **Scope:** why `holidays_events.csv` can't be read as a plain "was it a holiday?" table, and how
 to build an *effective* holiday calendar. The verified composition (350 rows, 12 transferred, the
@@ -154,6 +154,8 @@ per day* before any feature touches the data.
 
 ## Verify
 
+The raw composition the fix has to reconcile:
+
 ```bash
 uv run python -c "
 import sys; sys.path.insert(0,'.')
@@ -166,10 +168,44 @@ print(h['locale'].value_counts().to_dict())                    # National/Region
 "
 ```
 
+And that the fix produces the right effective calendar and per-store scoping:
+
+```bash
+uv run python -c "
+import sys; sys.path.insert(0,'.')
+import pandas as pd
+from src import data, features
+h, s = data.load_holidays(), data.load_stores()
+
+eff = features.effective_holiday_calendar(h)
+print('effective rows :', len(eff))                               # 338 (350 - 12 transferred)
+print('work_day kept  :', int((eff['effect']=='work_day').sum())) # 5, tagged work_day not holiday
+
+# Guayaquil pair collapses to the observed date only (Oct 9 ghost gone, Oct 12 Transfer kept)
+g = eff[eff['date'].isin(pd.to_datetime(['2012-10-09','2012-10-12']))]
+print('guayaquil dates:', list(g['date'].dt.date.astype(str)))    # ['2012-10-12']
+
+feats = features.make_holiday_features(h, s)
+manta = sorted(s.loc[s['city']=='Manta','store_nbr'])
+hit = sorted(feats[(feats['date']=='2014-03-02') & (feats['is_holiday']==1)]['store_nbr'])
+print('manta stores   :', manta, '| flagged 2014-03-02:', hit)    # local scope: Manta only
+print('store 1 flagged :', 1 in hit)                              # False (Quito unaffected)
+"
+```
+
 ## Where
 
-Holiday features in `src/features.py`. The payday signal (a related calendar effect) is best
-encoded as a **post-payday window**, not a single-day flag — see `../eda/04-calendar-holidays.md`.
+Two functions in `src/features.py` implement the fix:
+
+- `effective_holiday_calendar(holidays)` — drops the `transferred=True` ghosts and tags each
+  surviving row `effect='holiday'` or (for `Work Day`) `effect='work_day'`.
+- `make_holiday_features(holidays, stores)` — locale-scopes each entry (National→all stores,
+  Regional→`state`, Local→`city`) and returns per-`(store_nbr, date)` flags
+  `is_holiday` / `is_work_day` / `is_national_holiday`. Callers left-join it onto the gap-free
+  grid by `(store_nbr, date)` and fill absent rows with 0.
+
+The payday signal (a related calendar effect) is best encoded as a **post-payday window**, not a
+single-day flag — see `../eda/04-calendar-holidays.md`.
 
 **Lesson:** a column named like a feature isn't automatically a usable feature. Understanding the
 domain (how holidays *actually* work) is part of feature engineering.
