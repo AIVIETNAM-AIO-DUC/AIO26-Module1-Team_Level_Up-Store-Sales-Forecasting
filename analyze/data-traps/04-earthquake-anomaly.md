@@ -1,4 +1,4 @@
-# Trap 4 — The 2016 earthquake anomaly  ⏳ FIX PLANNED
+# Trap 4 — The 2016 earthquake anomaly  ✅ FIXED
 
 **Scope:** the one-off relief-driven spike after the 2016-04-16 earthquake, why an unmarked
 anomaly distorts trend/seasonality, and the "label, don't delete" flag. The measured size and
