@@ -1,6 +1,6 @@
-# An honest scoreboard: the time-respecting holdout
+# An honest scoreboard: the time-respecting validation set
 
-**Scope:** how we compare models honestly — by holding out the last 16 training days as a
+**Scope:** how we compare models honestly — by holding back the last 16 training days as a
 private, instant stand-in for the real test set — and why the split must respect time.
 
 ---
@@ -12,7 +12,7 @@ The only honest signal is its error on data it did **not** train on.
 
 You *could* get that by submitting to Kaggle each time, but submissions are limited and chasing
 the public leaderboard leads to **overfitting the leaderboard**. So we keep a private slice of our
-own data as an instant, unlimited, honest scoreboard — a **holdout**.
+own data as an instant, unlimited, honest scoreboard — a **validation set**.
 
 ## Why the split must respect *time*
 
@@ -24,21 +24,21 @@ collapses. (This is a leakage problem — see [leakage.md](leakage.md).)
 So the split is a clean cut in time:
 
 ```
-train: 2013-01-01 ........... 2017-07-30  │  holdout: 2017-07-31 → 2017-08-15
+train: 2013-01-01 ........... 2017-07-30  │  validation: 2017-07-31 → 2017-08-15
        (model learns from the past)        │  (predicts forward, blind)
 ```
 
-Everything in the holdout comes strictly *after* training. **Random K-fold is forbidden here**,
-and the split function asserts the ordering so we can't break it by accident.
+Everything in the validation set comes strictly *after* training. **Random K-fold is forbidden
+here**, and the split function asserts the ordering so we can't break it by accident.
 
 ## Why exactly 16 days
 
-The real horizon is 16 days, so we hold out the **last 16 training days** — same length, same
+The real horizon is 16 days, so we hold back the **last 16 training days** — same length, same
 "predict 16 days forward" shape. A shorter window wouldn't faithfully represent the task.
 
-## The holdout is NOT `test.csv`
+## The validation set is NOT `test.csv`
 
-|  | **Holdout** | **`test.csv`** |
+|  | **Validation set** | **`test.csv` (test set)** |
 |---|---|---|
 | Comes from | carved out of `train.csv` | a separate file Kaggle provides |
 | Dates | 2017-07-31 → 2017-08-15 | 2017-08-16 → 2017-08-31 |
@@ -58,7 +58,7 @@ The last 16 days are hidden **only while comparing models**. Once the best appro
 3. Predict test.csv (2017-08-16 → 08-31) → submit
 ```
 
-**Where:** `src/validation.py :: train_holdout_split()` does the split and asserts the ordering.
+**Where:** `src/validation.py :: train_validation_split()` does the split and asserts the ordering.
 Scoring uses [rmsle-metric.md](rmsle-metric.md).
 
 **Related:** [rmsle-metric.md](rmsle-metric.md) · [baselines.md](baselines.md) · [leakage.md](leakage.md)

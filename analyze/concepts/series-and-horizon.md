@@ -58,4 +58,4 @@ The submission therefore has:
 Hold on to **1,782** and **28,512** — they reappear constantly as sanity checks.
 
 **Related:** `../eda/01-data-overview.md` · [lag-horizon.md](lag-horizon.md) ·
-[validation-holdout.md](validation-holdout.md)
+[validation.md](validation.md)

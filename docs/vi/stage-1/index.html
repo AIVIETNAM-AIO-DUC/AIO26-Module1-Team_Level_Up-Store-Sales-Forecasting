@@ -14,7 +14,7 @@ sections:
   <h2>Baseline<a href="{{ '/vi/glossary/' | relative_url }}#g-baseline" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a> dự báo: seasonal-naive &amp; near-zero</h2>
   <p class="lead">Cách dự đoán đơn giản nhất có thể — không huấn luyện, không toán. Việc của
   Giai đoạn 1 là chấm các baseline này trên
-  <a href="{{ '/vi/foundations/#holdout' | relative_url }}">holdout</a> và <strong>ghi lại con
+  <a href="{{ '/vi/foundations/#holdout' | relative_url }}">validation set</a> và <strong>ghi lại con
   số cần vượt qua</strong>. Chúng cũng đóng vai trò
   <strong>quy tắc fallback</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-fallback" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>
   cho các series quá thưa để mô hình hóa (xem
@@ -84,7 +84,7 @@ dự đoán Thứ Ba tới   = doanh số Thứ Ba tuần trước
   trên series khỏe mạnh, rồi ghép hai tập dự đoán lại thành đủ 28,512 dòng — thực hiện ở
   <a href="{{ '/vi/stage-4/' | relative_url }}">Giai đoạn 4</a>.</p>
   <p class="muted"><strong>Ở đâu:</strong> nhánh fallback trong <code>src/models.py</code>;
-  được chấm bởi <code>rmsle()</code> trên holdout, giống mọi giai đoạn sau.</p>
+  được chấm bởi <code>rmsle()</code> trên validation set, giống mọi giai đoạn sau.</p>
 </section>
 
 <footer>

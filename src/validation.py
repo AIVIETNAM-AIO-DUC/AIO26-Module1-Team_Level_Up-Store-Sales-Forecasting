@@ -1,11 +1,11 @@
 """Validation harness — the test of record for this project (Constitution IV).
 
-Responsibility: the time-respecting 16-day holdout split, RMSLE scoring in log space
+Responsibility: the time-respecting 16-day validation split, RMSLE scoring in log space
 with non-negative clipping, the no-leak and gap-free assertions, and the iteration
-log helper. Every model is judged by these functions on the *same* holdout so scores
-are comparable and honest.
+log helper. Every model is judged by these functions on the *same* validation set so
+scores are comparable and honest.
 
-Implemented in tasks T007 (assert_gapfree), T008 (train_holdout_split),
+Implemented in tasks T007 (assert_gapfree), T008 (train_validation_split),
 T009 (rmsle, clip_nonneg), T010 (assert_no_leak), T011 (log_iteration),
 T036 (validate_submission).
 """
@@ -22,7 +22,7 @@ import pandas as pd
 
 SERIES_KEY: list[str] = ["store_nbr", "family"]
 
-# The competition horizon is 16 days; the local holdout mirrors it exactly.
+# The competition horizon is 16 days; the local validation set mirrors it exactly.
 HORIZON_DAYS: int = 16
 
 # Past-only feature sources for the base_lag guard (T029a): a feature derived from these may only
@@ -55,7 +55,7 @@ def rmsle(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> float:
     sales units (not log space); predictions are clipped to ``>= 0`` first because
     ``log1p`` is undefined for negatives. ``log1p`` (= ``log(1 + x)``) maps the many
     zero-sales days to 0 cleanly. Every model is scored with this same function on the
-    same holdout so the numbers are comparable (Constitution IV).
+    same validation set so the numbers are comparable (Constitution IV).
 
     Args:
         y_true: Actual sales (``>= 0``).
@@ -123,8 +123,8 @@ def assert_no_leak(
     boundary explicitly (Constitution IV).
 
     Two common uses:
-      * Training must not see the holdout: ``assert_no_leak(train, holdout_start,
-        strict=True)`` — every training row must be *strictly before* the holdout.
+      * Training must not see the validation set: ``assert_no_leak(train, val_start,
+        strict=True)`` — every training row must be *strictly before* the validation set.
       * A feature set is "as of" a date: ``assert_no_leak(features, as_of)`` — nothing
         may be dated *after* ``as_of``.
 
@@ -216,53 +216,55 @@ def _assert_base_lag(columns: Sequence[str], base_lag: int) -> None:
             )
 
 
-def train_holdout_split(
+def train_validation_split(
     df: pd.DataFrame,
     *,
     horizon_days: int = HORIZON_DAYS,
     date_col: str = "date",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Split into a training set and a time-based holdout = the last ``horizon_days``.
+    """Split into a training set and a time-based validation set = the last ``horizon_days``.
 
-    The holdout mirrors the real forecast horizon (16 days) and comes strictly *after*
-    the training data, so local RMSLE scores behave like the leaderboard and no future
-    day leaks into training (Constitution IV; random K-fold is forbidden for time series).
+    The validation set mirrors the real forecast horizon (16 days) and comes strictly
+    *after* the training data, so local RMSLE scores behave like the leaderboard and no
+    future day leaks into training (Constitution IV; random K-fold is forbidden for time
+    series).
 
     Used only for *measuring* models. The final model is re-fit on the full ``df``
-    (including the holdout days) before predicting the real ``test.csv``.
+    (including the validation days) before predicting the real ``test.csv``.
 
     Args:
         df: A frame with a datetime ``date_col`` (e.g. gap-free reindexed train).
-        horizon_days: Length of the holdout window. Defaults to 16.
+        horizon_days: Length of the validation window. Defaults to 16.
         date_col: Name of the daily date column.
 
     Returns:
-        ``(train, holdout)``. With data ending 2017-08-15, the holdout is
+        ``(train, val)``. With data ending 2017-08-15, the validation set is
         2017-07-31 → 2017-08-15 and train is everything before 2017-07-31.
 
     Raises:
-        AssertionError: If either split is empty, the holdout does not strictly follow
-            train, or the holdout does not cover exactly ``horizon_days`` distinct dates.
+        AssertionError: If either split is empty, the validation set does not strictly
+            follow train, or the validation set does not cover exactly ``horizon_days``
+            distinct dates.
     """
     last_day = df[date_col].max()
-    holdout_start = last_day - pd.Timedelta(days=horizon_days - 1)
+    val_start = last_day - pd.Timedelta(days=horizon_days - 1)
 
-    train = df[df[date_col] < holdout_start]
-    holdout = df[df[date_col] >= holdout_start]
+    train = df[df[date_col] < val_start]
+    val = df[df[date_col] >= val_start]
 
     assert not train.empty, "Training split is empty — check the date column / horizon."
-    assert not holdout.empty, "Holdout split is empty — check the date column / horizon."
-    assert train[date_col].max() < holdout[date_col].min(), (
-        "Holdout must strictly follow training data (time leak): "
+    assert not val.empty, "Validation split is empty — check the date column / horizon."
+    assert train[date_col].max() < val[date_col].min(), (
+        "Validation set must strictly follow training data (time leak): "
         f"train ends {train[date_col].max().date()}, "
-        f"holdout starts {holdout[date_col].min().date()}."
+        f"validation starts {val[date_col].min().date()}."
     )
-    n_holdout_days = holdout[date_col].nunique()
-    assert n_holdout_days == horizon_days, (
-        f"Holdout covers {n_holdout_days} distinct dates, expected {horizon_days}."
+    n_val_days = val[date_col].nunique()
+    assert n_val_days == horizon_days, (
+        f"Validation set covers {n_val_days} distinct dates, expected {horizon_days}."
     )
 
-    return train, holdout
+    return train, val
 
 
 def log_iteration(
@@ -274,7 +276,7 @@ def log_iteration(
 ) -> str:
     """Append one iteration to ``iteration_log.md`` and return the delta string.
 
-    Records ``stage`` (the technique tried), its holdout ``rmsle_value``, and the delta
+    Records ``stage`` (the technique tried), its validation ``rmsle_value``, and the delta
     versus the best score logged so far (negative = improvement, flagged ✅). This makes
     each technique's incremental effect traceable across the project.
 
@@ -283,7 +285,7 @@ def log_iteration(
 
     Args:
         stage: Short label, e.g. "baseline: seasonal-naive" or "deterministic + weekly Fourier".
-        rmsle_value: Holdout RMSLE for this iteration.
+        rmsle_value: Validation RMSLE for this iteration.
         notes: Optional free-text note for the row.
         log_path: Target log file (defaults to repo-root ``iteration_log.md``).
 

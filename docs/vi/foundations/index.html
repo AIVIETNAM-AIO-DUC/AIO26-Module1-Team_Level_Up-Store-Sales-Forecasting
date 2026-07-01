@@ -8,7 +8,7 @@ sections:
   - { id: predict, label: "Chúng ta dự đoán gì" }
   - { id: data,    label: "Làm quen với dữ liệu" }
   - { id: rmsle,   label: "RMSLE (thử ngay)" }
-  - { id: holdout, label: "Holdout trung thực" }
+  - { id: holdout, label: "Validation trung thực" }
   - { id: rules,   label: "5 nguyên tắc" }
 ---
 
@@ -16,8 +16,8 @@ sections:
   <div class="eyebrow">Nền tảng · đọc một lần, dùng mãi</div>
   <h2>Từ vựng mọi giai đoạn đều dùng</h2>
   <p class="lead">Cái ta đang dự đoán, bảy file CSV đầu vào, metric (với calculator tương tác),
-  holdout trung thực, và năm nguyên tắc được thực thi trong code. Mọi giai đoạn sau đều giả
-  định bạn đã nội hóa trang này.</p>
+  validation set trung thực, và năm nguyên tắc được thực thi trong code. Mọi giai đoạn sau đều
+  giả định bạn đã nội hóa trang này.</p>
 </header>
 
 <section class="block" id="predict">
@@ -210,11 +210,11 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
 
 <section class="block" id="holdout">
   <div class="eyebrow">Nền tảng · bảng điểm</div>
-  <h3>Làm sao biết một mô hình tốt? Một holdout trung thực</h3>
+  <h3>Làm sao biết một mô hình tốt? Một validation set trung thực</h3>
   <p>Một mô hình luôn trông xuất sắc trên dữ liệu mà nó đã huấn luyện — nó đã thấy đáp án.
   Tín hiệu trung thực duy nhất là sai số trên dữ liệu mà nó <strong>không</strong> huấn luyện.
   Ta giữ riêng một phần dữ liệu của mình làm bảng điểm tức thì, không giới hạn: một
-  <strong>holdout</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-holdout" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>.</p>
+  <strong>validation set</strong><a href="{{ '/vi/glossary/' | relative_url }}#g-holdout" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a>.</p>
 
   <div class="callout leak">
     <span class="tag">Nguyên tắc time-series</span>
@@ -224,15 +224,15 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
     <em>thời gian</em>.</p>
   </div>
 
-  <pre>train: 2013-01-01 ........... 2017-07-30  │  holdout: 2017-07-31 → 2017-08-15
+  <pre>train: 2013-01-01 ........... 2017-07-30  │  validation: 2017-07-31 → 2017-08-15
        (mô hình học từ quá khứ)            │  (mô hình dự đoán tới, không nhìn thấy)</pre>
   <p>Ta giữ riêng <strong>16 ngày huấn luyện cuối</strong> — cùng độ dài, cùng hình dạng "dự
   đoán 16 ngày tới" như nhiệm vụ thật.</p>
 
-  <h4>Holdout KHÔNG phải <code>test.csv</code> — đừng nhầm</h4>
+  <h4>Validation set KHÔNG phải <code>test.csv</code> — đừng nhầm</h4>
   <div class="scroll">
   <table>
-    <thead><tr><th></th><th>Holdout</th><th><code>test.csv</code></th></tr></thead>
+    <thead><tr><th></th><th>Validation set</th><th><code>test.csv</code> (test set)</th></tr></thead>
     <tbody>
       <tr><td>Đến từ</td><td>cắt ra từ <code>train.csv</code></td><td>file riêng do Kaggle cung cấp</td></tr>
       <tr><td>Ngày</td><td>2017-07-31 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
@@ -248,7 +248,7 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
     hình</em>. Khi đã chọn được hướng tốt nhất, hãy fit lại trên <strong>toàn bộ</strong> dữ
     liệu huấn luyện (gồm cả 16 ngày đó) trước khi dự đoán <code>test.csv</code> thật — những
     ngày gần đây nhất mang tín hiệu nhu cầu tươi mới nhất.</p></div>
-  <p class="muted"><strong>Ở đâu:</strong> <code>src/validation.py :: train_holdout_split()</code>
+  <p class="muted"><strong>Ở đâu:</strong> <code>src/validation.py :: train_validation_split()</code>
   thực hiện việc cắt và assert đúng thứ tự.</p>
 </section>
 
@@ -263,7 +263,7 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
   <div class="callout tip"><span class="tag">Bối cảnh cụ thể — rule 1 &amp; rule 3 nhìn ra sao trong dataset này</span>
     <p style="margin:.3em 0 .5em">Trong file Kaggle thật, ta <em>không</em> nhìn thấy tương lai:
     <code>test.csv</code> (16/8 → 31/8) không có cột <code>sales</code>. Leakage chỉ thực sự
-    rình rập khi ta tự cắt <strong>holdout</strong> trong lúc phát triển — sales của những
+    rình rập khi ta tự cắt <strong>validation set</strong> trong lúc phát triển — sales của những
     ngày sau cutoff vẫn nằm sờ sờ trong <code>train.csv</code> và có thể bị code lỡ tay kéo
     vào (rule 1).</p>
     <p style="margin:.3em 0 .3em">Khi nộp bài, ta phải dự đoán cả 16 ngày (16/8 → 31/8) chỉ
@@ -322,16 +322,16 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
         ngang trục thời gian và để model train trên tương lai của những ngày nó sắp "dự đoán",
         sinh ra điểm số không sống nổi qua kỳ test thật.
         <span class="muted">Trong dữ liệu của ta: test thật là 16/8 → 31/8/2017 — 16 ngày ngay
-        sau khi train kết thúc. Holdout phát triển phản chiếu y hệt: train trên
+        sau khi train kết thúc. Validation set phát triển phản chiếu y hệt: train trên
         2013-01-01 → 2017-07-30, validate trên 2017-07-31 → 2017-08-15 (cùng cửa sổ 16 ngày,
-        chỉ dịch lùi 16 ngày). <code>train_holdout_split()</code> thực hiện cắt và assert đúng
+        chỉ dịch lùi 16 ngày). <code>train_validation_split()</code> thực hiện cắt và assert đúng
         thứ tự.</span>
       </li>
       <li style="margin:.7em 0"><strong>Xử lý metric nhất quán.</strong>
         Tính metric giống hệt nhau trên mọi mô hình và mọi dự đoán — cùng transform, cùng cách
         clip, cùng cách lấy trung bình — nếu không bảng điểm sẽ ngừng so sánh được với nhau.
         <span class="muted">Trong dữ liệu của ta: Kaggle chấm cuộc thi này bằng RMSLE trên
-        <code>log1p(sales)</code>, nên ta làm y vậy trên mọi holdout. Sales không thể âm, nhưng
+        <code>log1p(sales)</code>, nên ta làm y vậy trên mọi validation score. Sales không thể âm, nhưng
         một model regression vẫn có thể emit một số âm nhỏ — số âm không clip sẽ làm crash
         <code>log1p</code>, nên phải clip prediction ≥ 0 trước. <code>src/validation.py :: rmsle()</code>
         và <code>clip_nonneg()</code> là điểm vào duy nhất.</span>

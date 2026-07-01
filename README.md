@@ -62,7 +62,7 @@ notebooks/           # 01_eda onward — teaching/exploration, run via uv
 analyze/             # learner docs (Markdown): README + concepts/ + data-traps/ + eda/
 docs/                # published website (GitHub Pages): en/ + vi/, organized by stage
 submissions/         # generated submission CSVs (git-ignored)
-iteration_log.md     # running log of each technique's holdout RMSLE
+iteration_log.md     # running log of each technique's validation RMSLE
 store-sales-data/    # raw competition CSVs — ADD YOURSELF (git-ignored)
 specs/               # Spec Kit planning artifacts (internal — readers can ignore)
 ```

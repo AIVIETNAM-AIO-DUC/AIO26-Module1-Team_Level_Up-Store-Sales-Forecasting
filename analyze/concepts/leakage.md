@@ -33,9 +33,9 @@ Each of these has its own page; the leakage *reasoning* is here, the specifics a
   availability. See `../eda/05-promotions-oil.md`.
 - **Sales lags** — the horizon is 16 days long with no real sales inside it, so any sales-lag must
   reach back **≥ 16 days**. Full reasoning: [lag-horizon.md](lag-horizon.md).
-- **Validation** — even the train/holdout split is a leakage question: the holdout must come
-  strictly *after* training (no future days in training). See
-  [validation-holdout.md](validation-holdout.md).
+- **Validation** — even the train/validation split is a leakage question: the validation set must
+  come strictly *after* training (no future days in training). See
+  [validation.md](validation.md).
 
 ## Encode the rule, don't just remember it
 

@@ -13,7 +13,7 @@ real CSVs with `uv run`.
 - **`eda/`** — what the exploratory notebook (`notebooks/01_eda.ipynb`) actually showed, section
   by section, with the verified numbers and the modeling implication.
 - **`baseline/`** — what the baseline notebook (`notebooks/02_baseline.ipynb`) produced: the
-  first holdout score and the floor every later model must beat.
+  first validation score and the floor every later model must beat.
 - **`deterministic/`** — what the deterministic notebook (`notebooks/03_deterministic.ipynb`)
   produced: the first *learned* model (trend + Fourier) and how it compares to that floor.
 - **`features/`** — what the feature notebook (`notebooks/04_features.ipynb`) produced: adding
@@ -25,7 +25,7 @@ real CSVs with `uv run`.
 2. `concepts/rmsle-metric.md` — how we're scored, and why we work in log space
 3. `data-traps/` (01 → 06) — the data problems, easiest to subtlest
 4. `concepts/leakage.md` — the one idea behind several traps
-5. `concepts/validation-holdout.md` — how we get an honest scoreboard
+5. `concepts/validation.md` — how we get an honest scoreboard
 6. `eda/` (01 → 06) — the evidence behind every modeling choice
 7. `concepts/seasonality-fourier.md`, `concepts/periodogram.md` — the seasonality machinery
 8. `concepts/baselines.md`, `concepts/lag-horizon.md` — forecasting mechanics

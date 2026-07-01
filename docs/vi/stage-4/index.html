@@ -35,7 +35,7 @@ sections:
   <div class="eyebrow">Giai đoạn 4 · chọn mức</div>
   <h3>Quyết định granularity<a href="{{ '/vi/glossary/' | relative_url }}#g-granularity" class="gl" title="Từ điển thuật ngữ"><sup>ⓘ</sup></a></h3>
   <p>Một mô hình cho cả 1,782 series? Một mô hình cho mỗi family? Một cho mỗi store-family?
-  Giai đoạn 4 chọn mức bằng RMSLE trên holdout — granularity càng mịn càng bắt được pattern
+  Giai đoạn 4 chọn mức bằng RMSLE trên validation set — granularity càng mịn càng bắt được pattern
   cục bộ nhưng đói dữ liệu; càng thô càng gom được nhiều dữ liệu nhưng làm nhòe pattern.
   <a href="{{ '/vi/foundations/#rules' | relative_url }}">Năm nguyên tắc</a> áp dụng cho mọi
   lựa chọn.</p>
@@ -53,9 +53,9 @@ sections:
 <section class="block" id="refit">
   <div class="eyebrow">Giai đoạn 4 · dữ liệu tươi mới nhất</div>
   <h3>Fit cuối trên toàn bộ, rồi dự đoán</h3>
-  <p>Khi đã chọn được hướng tốt nhất trên holdout, <strong>fit lại mô hình đã chọn trên toàn
-  bộ dữ liệu huấn luyện</strong> (bao gồm 16 ngày holdout — trend và seasonality tươi mới nhất
-  nằm ở đó) trước khi dự đoán <code>test.csv</code> thật.</p>
+  <p>Khi đã chọn được hướng tốt nhất trên validation set, <strong>fit lại mô hình đã chọn trên
+  toàn bộ dữ liệu huấn luyện</strong> (bao gồm 16 ngày validation — trend và seasonality tươi mới
+  nhất nằm ở đó) trước khi dự đoán <code>test.csv</code> thật.</p>
 </section>
 
 <section class="block" id="submission">
@@ -70,7 +70,7 @@ sections:
   ta dùng khi chấm RMSLE). <strong>Ở đâu:</strong> <code>src/submission.py</code>.</p>
 
   <div class="callout key"><span class="tag">Toàn bộ pipeline, trên một dòng</span>
-    <p style="margin:.4em 0 0">load → reindex (gap-free) → split (holdout) → Giai đoạn 1
+    <p style="margin:.4em 0 0">load → reindex (gap-free) → split (validation) → Giai đoạn 1
     (sàn baseline) → Giai đoạn 2 (deterministic) → Giai đoạn 3 (features trên residual) →
     Giai đoạn 4 (hybrid + ghép fallback) → refit trên toàn bộ → ghi submission.</p></div>
 </section>

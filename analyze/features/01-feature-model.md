@@ -1,7 +1,7 @@
 # Feature model — adding techniques one at a time (notebook `04_features.ipynb`)
 
-**Scope:** what the feature stage produced — the holdout RMSLE after each feature group is added on
-top of the deterministic backbone, which techniques actually helped, and the honest story the
+**Scope:** what the feature stage produced — the validation RMSLE after each feature group is added
+on top of the deterministic backbone, which techniques actually helped, and the honest story the
 iteration log tells. This is the result page; the *ideas* behind each feature live in the
 `concepts/` and `data-traps/` files linked at the bottom.
 
@@ -17,7 +17,7 @@ Same thin-notebook shape as the earlier stages — all logic in `src/`:
    holidays (effective, locale-scoped), and lags (sales lag/rolling + lagged transactions). All are
    knowable in advance; `onpromotion` is used same-day (it ships in `test.csv`).
 3. **Compose one tidy matrix** — merge every group onto the grid by its natural key, then split off
-   the same last-16-days holdout.
+   the same last-16-days validation set.
 4. **Add groups one at a time** — fit `LinearFeatureModel` (per-series `LinearRegression` in
    `log1p` space) on a growing column set, re-score RMSLE, and log each result.
 
@@ -28,9 +28,9 @@ adding a lag warm-up NaN-drop. With deterministic features only it reproduces th
 
 ## The result
 
-Each row is scored on the same 16-day holdout (2017-07-31 → 2017-08-15):
+Each row is scored on the same 16-day validation window (2017-07-31 → 2017-08-15):
 
-| Added on top of deterministic | Holdout RMSLE | vs baseline (0.61704) |
+| Added on top of deterministic | Validation RMSLE | vs baseline (0.61704) |
 |---|---|---|
 | deterministic only | 0.62188 | −0.8% (parity) |
 | + holidays | 0.62305 | −1.0% (slightly worse) |
@@ -79,17 +79,17 @@ list passed to `LinearFeatureModel` — nothing else changes.
 
 ## Why it stays leak-free
 
-Every feature is built **once over the full history** and split by date — safe because the holdout
-span (16 days) equals the minimum sales-lag, `base_lag = 16`. The farthest holdout day's `lag_16`
-reaches back exactly to the last training day, never into the holdout (see
+Every feature is built **once over the full history** and split by date — safe because the
+validation span (16 days) equals the minimum sales-lag, `base_lag = 16`. The farthest validation
+day's `lag_16` reaches back exactly to the last training day, never into the validation set (see
 [`../concepts/lag-horizon.md`](../concepts/lag-horizon.md)). The notebook asserts this at **every**
 stage with the `base_lag` leak guard — if any sales/transactions feature reached back fewer than 16
 days, the run would fail loudly rather than report an inflated score.
 
 ## Verify
 
-Reproduces the 0.50991 holdout RMSLE of the full feature model from the raw CSVs (run from the repo
-root; takes ~30s):
+Reproduces the 0.50991 validation RMSLE of the full feature model from the raw CSVs (run from the
+repo root; takes ~30s):
 
 ```bash
 uv run python -c "
@@ -117,12 +117,12 @@ m[HOL] = m[HOL].fillna(0).astype('int8')
 m = m.merge(lags,on=KEY+['date'],how='left')
 
 start = df['date'].max() - pd.Timedelta(days=V.HORIZON_DAYS-1)
-train, hold = m[m['date']<start], m[m['date']>=start]
+train, val = m[m['date']<start], m[m['date']>=start]
 V.assert_no_leak(train[KEY+['date']+cols], start, strict=True, base_lag=V.HORIZON_DAYS)
 
-preds = models.LinearFeatureModel(cols).fit(train).predict(hold)
-sc = hold[KEY+['date','sales']].merge(preds, on=KEY+['date'])
-print('holdout RMSLE:', round(V.rmsle(sc['sales'], sc['sales_pred']), 5))  # 0.50991
+preds = models.LinearFeatureModel(cols).fit(train).predict(val)
+sc = val[KEY+['date','sales']].merge(preds, on=KEY+['date'])
+print('validation RMSLE:', round(V.rmsle(sc['sales'], sc['sales_pred']), 5))  # 0.50991
 "
 ```
 

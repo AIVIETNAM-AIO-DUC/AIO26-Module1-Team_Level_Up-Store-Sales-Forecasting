@@ -187,4 +187,4 @@ tính. Clip về 0 thì nó khớp với actual `0` và đóng góp một error 
 
 **Ở đâu:** `src/validation.py :: rmsle()` và `clip_nonneg()`.
 
-**Liên quan:** [validation-holdout.md](validation-holdout.md) · [baselines.md](baselines.md)
+**Liên quan:** [validation.md](../../concepts/validation.md) · [baselines.md](../../concepts/baselines.md)

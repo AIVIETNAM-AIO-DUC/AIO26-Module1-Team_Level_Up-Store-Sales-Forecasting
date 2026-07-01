@@ -49,12 +49,12 @@ def seasonal_naive_predict(
     This is the bar every later model must beat (Stage 1 baseline; SC-002).
 
     **Leak-safe by construction**: predictions are read only from ``train`` (the data
-    *before* the holdout/horizon). It never shifts a combined train+holdout series, so a
-    holdout day can never read another holdout day's actual (Constitution IV).
+    *before* the validation set/horizon). It never shifts a combined train+validation series,
+    so a validation day can never read another validation day's actual (Constitution IV).
 
     Args:
         train: A gap-free reindexed sales frame ending strictly before the forecast window
-            (e.g. the ``train`` half of :func:`validation.train_holdout_split`, or the full
+            (e.g. the ``train`` half of :func:`validation.train_validation_split`, or the full
             history when forecasting the real test horizon). Must contain ``key``,
             ``date_col``, and ``target_col``.
         horizon: Number of future days to predict. Defaults to 16.
@@ -140,7 +140,7 @@ class DeterministicModel:
     A residual linear-trend overshoot remains for a handful of plateaued long-trending series
     (a linear trend keeps rising) — this is the honest behaviour of a deterministic model, not
     a defect, and it is bounded (no clip hack). Series with **no** sales at all predict 0 (the
-    natural near-zero fallback; research R8). On the 16-day holdout this model lands roughly at
+    natural near-zero fallback; research R8). On the 16-day validation set this model lands roughly at
     parity with the seasonal-naive baseline: deterministic-only is a fair but modest stage;
     the large gains arrive with lags / promotions / holidays / the hybrid (Stages 3–4).
 
@@ -172,7 +172,7 @@ class DeterministicModel:
 
         Args:
             trend_order: Polynomial trend order passed to the feature builder (1 = linear).
-                Defaults to 1; a clip-free holdout sweep showed dropping the trend underfits
+                Defaults to 1; a clip-free validation sweep showed dropping the trend underfits
                 genuinely-trending series badly.
             weekly_order: Number of weekly Fourier harmonics. Defaults to the EDA-backed 3.
             annual_order: Number of annual Fourier harmonics. Defaults to the EDA-backed 4.
@@ -217,7 +217,7 @@ class DeterministicModel:
         Args:
             train: A gap-free reindexed sales frame with ``key``, ``date_col``, and
                 ``target_col`` (e.g. the ``train`` half of
-                :func:`validation.train_holdout_split`, or the full history before forecasting
+                :func:`validation.train_validation_split`, or the full history before forecasting
                 the real test horizon).
 
         Returns:
@@ -273,7 +273,7 @@ class DeterministicModel:
 
         Args:
             horizon: Number of future days to predict. Defaults to 16 (the competition
-                horizon / local holdout length).
+                horizon / local validation length).
 
         Returns:
             A tidy frame ``[*key, date, sales_pred]`` with one row per series × forecast day
@@ -393,7 +393,7 @@ class LinearFeatureModel:
 
         Args:
             train: Tidy frame ``[*key, date, target, *feature_cols]`` (gap-free per series),
-                covering only the dates to train on (e.g. rows before the holdout start).
+                covering only the dates to train on (e.g. rows before the validation start).
 
         Returns:
             ``self`` (fitted), so calls can be chained.
@@ -431,7 +431,7 @@ class LinearFeatureModel:
 
         Args:
             future: Tidy frame ``[*key, date, *feature_cols]`` for the rows to predict (e.g. the
-                16-day holdout/horizon). Feature columns must be fully populated (no NaN).
+                16-day validation/horizon). Feature columns must be fully populated (no NaN).
 
         Returns:
             A tidy frame ``[*key, date, sales_pred]``, one row per input row, sorted by series/date.

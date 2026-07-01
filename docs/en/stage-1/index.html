@@ -13,8 +13,8 @@ sections:
   <div class="eyebrow">Stage 1 · the floor any model must beat</div>
   <h2>Forecast baselines: seasonal-naive &amp; near-zero</h2>
   <p class="lead">The simplest possible ways to predict — no training, no maths. Stage 1's job is
-  to score these on the <a href="{{ '/en/foundations/#holdout' | relative_url }}">holdout</a> and
-  <strong>record the number to beat</strong>. They also serve as the <strong>fallback rules</strong>
+  to score these on the <a href="{{ '/en/foundations/#holdout' | relative_url }}">validation set</a>
+  and <strong>record the number to beat</strong>. They also serve as the <strong>fallback rules</strong>
   for series too thin to model (see <a href="{{ '/en/stage-0/#trap-5' | relative_url }}">Trap 5</a>).</p>
   <p class="muted">Source: <code>analyze/concepts/baselines.md</code>.</p>
 </header>
@@ -80,7 +80,7 @@ predict next Tuesday = last Tuesday's sales
   stitch both prediction sets back together into all 28,512 rows — done in
   <a href="{{ '/en/stage-4/' | relative_url }}">Stage 4</a>.</p>
   <p class="muted"><strong>Where:</strong> the fallback path in <code>src/models.py</code>;
-  scored by <code>rmsle()</code> on the holdout, exactly like every later stage.</p>
+  scored by <code>rmsle()</code> on the validation set, exactly like every later stage.</p>
 </section>
 
 <footer>

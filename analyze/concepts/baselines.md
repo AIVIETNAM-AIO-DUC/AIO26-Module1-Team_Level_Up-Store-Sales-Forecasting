@@ -77,7 +77,7 @@ non-zero days → fallback," is one *we* choose; the connection to thin series i
 [`../data-traps/05-sparse-series.md`](../data-traps/05-sparse-series.md).)
 
 **Where:** the fallback path in `src/models.py`. Scored like everything else with
-[rmsle-metric.md](rmsle-metric.md) on the [holdout](validation-holdout.md).
+[rmsle-metric.md](rmsle-metric.md) on the [validation set](validation.md).
 
 **Related:** [`../data-traps/05-sparse-series.md`](../data-traps/05-sparse-series.md) ·
 [seasonality-fourier.md](seasonality-fourier.md)

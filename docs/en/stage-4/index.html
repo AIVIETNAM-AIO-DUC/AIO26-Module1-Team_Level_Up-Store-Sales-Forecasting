@@ -35,7 +35,7 @@ sections:
   <div class="eyebrow">Stage 4 · choose the level</div>
   <h3>Granularity decision</h3>
   <p>One model for all 1,782 series? One per family? One per store-family? Stage 4 picks the
-  level using the holdout RMSLE — finer granularity captures local patterns but starves on data;
+  level using the validation RMSLE — finer granularity captures local patterns but starves on data;
   coarser pools more data but smears patterns. The
   <a href="{{ '/en/foundations/#rules' | relative_url }}">same five rules</a> apply to every choice.</p>
 </section>
@@ -51,9 +51,9 @@ sections:
 <section class="block" id="refit">
   <div class="eyebrow">Stage 4 · the freshest data</div>
   <h3>Final fit on everything, then predict</h3>
-  <p>Once the best approach is chosen on the holdout, <strong>re-fit the chosen model on the full
-  training data</strong> (including the 16 holdout days — the freshest trend and seasonality
-  live there) before predicting the real <code>test.csv</code>.</p>
+  <p>Once the best approach is chosen on the validation set, <strong>re-fit the chosen model on
+  the full training data</strong> (including the 16 validation days — the freshest trend and
+  seasonality live there) before predicting the real <code>test.csv</code>.</p>
 </section>
 
 <section class="block" id="submission">
@@ -68,7 +68,7 @@ sections:
   for RMSLE scoring). <strong>Where:</strong> <code>src/submission.py</code>.</p>
 
   <div class="callout key"><span class="tag">The whole pipeline, on one line</span>
-    <p style="margin:.4em 0 0">load → reindex (gap-free) → split (holdout) → Stage 1 (baseline
+    <p style="margin:.4em 0 0">load → reindex (gap-free) → split (validation) → Stage 1 (baseline
     floor) → Stage 2 (deterministic) → Stage 3 (features on residuals) → Stage 4 (hybrid +
     fallback stitch) → refit on all data → write submission.</p></div>
 </section>

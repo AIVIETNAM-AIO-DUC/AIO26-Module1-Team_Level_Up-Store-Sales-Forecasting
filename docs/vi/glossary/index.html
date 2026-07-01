@@ -29,7 +29,7 @@ sections:
     <tbody>
       <tr id="g-series"><td><strong>series</strong></td><td>Lịch sử doanh số hàng ngày của <em>một nhóm sản phẩm tại một cửa hàng</em> — đơn vị có "quá khứ và tương lai" mà ta dự đoán. Có 54 × 33 = 1,782 series.</td></tr>
       <tr id="g-horizon"><td><strong>horizon / test horizon</strong></td><td>16 ngày tương lai cần dự đoán (2017-08-16 → 31).</td></tr>
-      <tr id="g-holdout"><td><strong>holdout</strong></td><td>Phần dữ liệu cắt ra từ <code>train.csv</code>, giấu đáp án đi, để tự chấm mô hình tại máy trước khi nộp.</td></tr>
+      <tr id="g-holdout"><td><strong>validation set</strong> <span class="muted">(còn gọi là <em>holdout</em>)</span></td><td>Phần dữ liệu cắt ra từ <code>train.csv</code>, giấu đáp án đi, để tự chấm mô hình tại máy trước khi nộp.</td></tr>
       <tr id="g-leakage"><td><strong>leakage</strong></td><td>Rò rỉ — dùng thông tin mà <em>thực tế chưa có</em> ở thời điểm dự đoán; làm điểm validation đẹp giả tạo rồi sụp khi chạy thật.</td></tr>
       <tr id="g-lag"><td><strong>lag</strong></td><td>Dùng giá trị của <em>ngày trước đó</em> (trễ N ngày) — thứ chắc chắn đã biết tại thời điểm dự đoán.</td></tr>
       <tr id="g-sameday"><td><strong>same-day / cùng ngày</strong></td><td>Dùng giá trị của <em>chính</em> ngày dự đoán; chỉ an toàn khi ta thực sự biết trước (như <code>onpromotion</code>).</td></tr>
@@ -37,7 +37,7 @@ sections:
       <tr id="g-fallback"><td><strong>fallback</strong></td><td>Phương án dự phòng đơn giản cho các series quá thưa để mô hình hóa (rơi về seasonal-naive / near-zero).</td></tr>
       <tr id="g-feature"><td><strong>feature</strong></td><td>Biến đầu vào của mô hình (vd. lag, ngày lễ, khuyến mãi). <em>feature engineering</em> = công việc tạo/biến đổi các biến này.</td></tr>
       <tr id="g-metric"><td><strong>metric</strong></td><td>Thước đo chấm điểm mô hình — ở đây là RMSLE.</td></tr>
-      <tr id="g-validation"><td><strong>validation / validate</strong></td><td>Kiểm định mô hình trên dữ liệu nó <em>chưa thấy</em> (vd. holdout) để ước lượng chất lượng thật.</td></tr>
+      <tr id="g-validation"><td><strong>validation / validate</strong></td><td>Kiểm định mô hình trên dữ liệu nó <em>chưa thấy</em> (vd. validation set) để ước lượng chất lượng thật.</td></tr>
     </tbody>
   </table>
   </div>
@@ -73,7 +73,7 @@ sections:
     <thead><tr><th>Thuật ngữ</th><th>Giải nghĩa nhanh</th></tr></thead>
     <tbody>
       <tr id="g-deterministic"><td><strong>deterministic</strong></td><td>Feature tính được cho <em>bất kỳ</em> ngày nào chỉ từ ngày tháng (trend + Fourier) — hoàn hảo cho dự báo vì ta luôn biết ngày.</td></tr>
-      <tr id="g-kfold"><td><strong>K-fold</strong></td><td>Chia dữ liệu ngẫu nhiên thành k phần để kiểm định — <strong>SAI</strong> cho time-series vì làm mô hình "nhìn thấy" tương lai. Ta dùng holdout theo thời gian thay thế.</td></tr>
+      <tr id="g-kfold"><td><strong>K-fold</strong></td><td>Chia dữ liệu ngẫu nhiên thành k phần để kiểm định — <strong>SAI</strong> cho time-series vì làm mô hình "nhìn thấy" tương lai. Ta dùng validation set theo thời gian thay thế.</td></tr>
       <tr id="g-reindex"><td><strong>reindex</strong></td><td>Dựng lại chỉ mục ngày để mỗi series có đủ mọi ngày trong lịch (lấp các ngày đóng cửa bằng sales = 0).</td></tr>
       <tr id="g-forwardfill"><td><strong>forward-fill</strong></td><td>Lấp ô trống bằng giá trị đã biết <em>gần nhất phía trước</em> (chỉ nhìn quá khứ → không leakage).</td></tr>
       <tr id="g-interpolation"><td><strong>interpolation</strong></td><td>Lấp ô trống bằng trung bình hai bên — <em>bị loại</em> vì "bên sau" là tương lai (leakage).</td></tr>

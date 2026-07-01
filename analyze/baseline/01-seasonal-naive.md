@@ -1,6 +1,6 @@
 # Baseline — Seasonal-naive result (notebook `02_baseline.ipynb`)
 
-**Scope:** what the baseline stage actually produced — the first holdout score, how it was
+**Scope:** what the baseline stage actually produced — the first validation score, how it was
 measured, and why it is the *floor* every later model must beat. This is the result page; the
 *idea* of a seasonal-naive forecast lives in
 [`../concepts/baselines.md`](../concepts/baselines.md).
@@ -14,25 +14,25 @@ Five small steps, all leaning on the reusable `src/` code:
 1. **Load + reindex** — read `train.csv` and reindex every `(store_nbr, family)` series onto a
    gap-free daily calendar (closed days → `sales = 0`). See
    [`../data-traps/01-missing-calendar-days.md`](../data-traps/01-missing-calendar-days.md).
-2. **Holdout split** — carve off the last 16 days (2017-07-31 → 2017-08-15) as the validation
+2. **Validation split** — carve off the last 16 days (2017-07-31 → 2017-08-15) as the validation
    window; train is everything before. See
-   [`../concepts/validation-holdout.md`](../concepts/validation-holdout.md).
+   [`../concepts/validation.md`](../concepts/validation.md).
 3. **Predict** — seasonal-naive: for each series, repeat the last complete training week across
    the 16-day horizon (same weekday → same value).
-4. **Score** — RMSLE between holdout actuals and predictions, in log space with non-negative
+4. **Score** — RMSLE between validation actuals and predictions, in log space with non-negative
    clipping. See [`../concepts/rmsle-metric.md`](../concepts/rmsle-metric.md).
 5. **Log** — append the score to `iteration_log.md` as the first row of the scoreboard.
 
 The notebook stays thin: the model is one call, scoring is one call. The logic is in
-`src/models.py` (`seasonal_naive_predict`) and `src/validation.py` (`train_holdout_split`,
+`src/models.py` (`seasonal_naive_predict`) and `src/validation.py` (`train_validation_split`,
 `rmsle`, `log_iteration`).
 
 ## The result
 
 | What | Value |
 |---|---|
-| **Holdout RMSLE** | **0.61704** |
-| Holdout window | 2017-07-31 → 2017-08-15 (16 days) |
+| **Validation RMSLE** | **0.61704** |
+| Validation window | 2017-07-31 → 2017-08-15 (16 days) |
 | Series scored | 1,782 |
 | Predictions | 28,512 rows (1,782 × 16), zero missing |
 
@@ -44,12 +44,12 @@ the hybrid) is judged by how far it pushes this number *down* on the exact same 
 Three disciplines make the score trustworthy rather than flattering — the same disciplines that
 guard every stage (see [`../concepts/honest-rules.md`](../concepts/honest-rules.md)):
 
-- **Time-respecting split.** The holdout is the *last* 16 days, strictly after training — never a
-  random sample. A random split would let the model peek at the future and report a fantasy
-  score.
+- **Time-respecting split.** The validation set is the *last* 16 days, strictly after training —
+  never a random sample. A random split would let the model peek at the future and report a
+  fantasy score.
 - **Leak-free by construction.** The prediction reads only the training half's last week. It
-  never shifts a combined train+holdout series, so a holdout day can never copy another holdout
-  day's actual value. (The general form of this trap:
+  never shifts a combined train+validation series, so a validation day can never copy another
+  validation day's actual value. (The general form of this trap:
   [`../concepts/leakage.md`](../concepts/leakage.md).)
 - **Scored in log space.** RMSLE penalizes *relative* error, so a tiny family and GROCERY I are
   weighted comparably — a small store isn't drowned out by a big one.
@@ -80,21 +80,21 @@ covered in [`../data-traps/05-sparse-series.md`](../data-traps/05-sparse-series.
 
 ## Verify
 
-Reproduces the 0.61704 holdout RMSLE from the raw CSVs (run from the repo root):
+Reproduces the 0.61704 validation RMSLE from the raw CSVs (run from the repo root):
 
 ```bash
 uv run python -c "
 from src.data import load_train, reindex_series_gapfree
-from src.validation import train_holdout_split, rmsle, HORIZON_DAYS
+from src.validation import train_validation_split, rmsle, HORIZON_DAYS
 from src.models import seasonal_naive_predict
 
 df = reindex_series_gapfree(load_train())
-train, holdout = train_holdout_split(df)
+train, val = train_validation_split(df)
 preds = seasonal_naive_predict(train, HORIZON_DAYS)
 
-scored = holdout.merge(preds, on=['store_nbr', 'family', 'date'], how='inner')
+scored = val.merge(preds, on=['store_nbr', 'family', 'date'], how='inner')
 assert len(scored) == 28512 and scored[['sales','sales_pred']].isna().sum().sum() == 0
-print('holdout RMSLE:', round(rmsle(scored['sales'], scored['sales_pred']), 5))  # 0.61704
+print('validation RMSLE:', round(rmsle(scored['sales'], scored['sales_pred']), 5))  # 0.61704
 "
 ```
 
@@ -105,7 +105,7 @@ uv run jupyter nbconvert --to notebook --execute --inplace notebooks/02_baseline
 ```
 
 **Related:** [`../concepts/baselines.md`](../concepts/baselines.md) ·
-[`../concepts/validation-holdout.md`](../concepts/validation-holdout.md) ·
+[`../concepts/validation.md`](../concepts/validation.md) ·
 [`../concepts/rmsle-metric.md`](../concepts/rmsle-metric.md) ·
 [`../concepts/leakage.md`](../concepts/leakage.md) ·
 [`../concepts/lag-horizon.md`](../concepts/lag-horizon.md)

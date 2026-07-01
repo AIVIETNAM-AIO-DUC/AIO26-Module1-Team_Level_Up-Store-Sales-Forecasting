@@ -8,7 +8,7 @@ sections:
   - { id: predict, label: "What we predict" }
   - { id: data,    label: "Meet the data" }
   - { id: rmsle,   label: "RMSLE (try it)" }
-  - { id: holdout, label: "Honest holdout" }
+  - { id: holdout, label: "Honest validation" }
   - { id: rules,   label: "The 5 rules" }
 ---
 
@@ -16,7 +16,7 @@ sections:
   <div class="eyebrow">Foundations · read this once, reference forever</div>
   <h2>The vocabulary every stage uses</h2>
   <p class="lead">What we're predicting, the seven CSV inputs, the metric (with an interactive
-  calculator), the honest holdout, and the five rules that get enforced in code. Every later
+  calculator), the honest validation set, and the five rules that get enforced in code. Every later
   stage assumes you've internalized this page.</p>
 </header>
 
@@ -209,11 +209,11 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
 
 <section class="block" id="holdout">
   <div class="eyebrow">Foundations · the scoreboard</div>
-  <h3>How do we know a model is good? An honest holdout</h3>
+  <h3>How do we know a model is good? An honest validation set</h3>
   <p>A model always looks brilliant on the data it trained on — it has effectively seen the
   answers. The only honest signal is its error on data it did <strong>not</strong> train on. We
   keep a private slice of our own data as an instant, unlimited scoreboard: a
-  <strong>holdout</strong>.</p>
+  <strong>validation set</strong>.</p>
 
   <div class="callout leak">
     <span class="tag">Time-series rule</span>
@@ -222,15 +222,15 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
     the future relative to what it predicts. The split must be a clean cut in <em>time</em>.</p>
   </div>
 
-  <pre>train: 2013-01-01 ........... 2017-07-30  │  holdout: 2017-07-31 → 2017-08-15
+  <pre>train: 2013-01-01 ........... 2017-07-30  │  validation: 2017-07-31 → 2017-08-15
        (model learns from the past)        │  (model predicts forward, blind)</pre>
   <p>We hold out the <strong>last 16 training days</strong> — same length, same "predict 16 days
   forward" shape as the real task.</p>
 
-  <h4>The holdout is NOT <code>test.csv</code> — keep them straight</h4>
+  <h4>The validation set is NOT <code>test.csv</code> — keep them straight</h4>
   <div class="scroll">
   <table>
-    <thead><tr><th></th><th>Holdout</th><th><code>test.csv</code></th></tr></thead>
+    <thead><tr><th></th><th>Validation set</th><th><code>test.csv</code> (test set)</th></tr></thead>
     <tbody>
       <tr><td>Comes from</td><td>carved out of <code>train.csv</code></td><td>a separate file Kaggle provides</td></tr>
       <tr><td>Dates</td><td>2017-07-31 → 2017-08-15</td><td>2017-08-16 → 2017-08-31</td></tr>
@@ -246,7 +246,7 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
     Once the best approach is picked, re-fit it on <strong>all</strong> training data (including
     those last 16 days) before predicting the real <code>test.csv</code> — the most recent days
     carry the freshest demand patterns.</p></div>
-  <p class="muted"><strong>Where:</strong> <code>src/validation.py :: train_holdout_split()</code>
+  <p class="muted"><strong>Where:</strong> <code>src/validation.py :: train_validation_split()</code>
   does the split and asserts the ordering.</p>
 </section>
 
@@ -261,7 +261,7 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
   <div class="callout tip"><span class="tag">Concrete scenario — what rule 1 &amp; rule 3 look like in this dataset</span>
     <p style="margin:.3em 0 .5em">In the raw Kaggle files we <em>can't</em> see the future:
     <code>test.csv</code> (Aug 16 → Aug 31) has no <code>sales</code> column. Leakage only
-    becomes a real risk when we cut our own <strong>holdout</strong> during development —
+    becomes a real risk when we cut our own <strong>validation set</strong> during development —
     post-cutoff sales still sit in <code>train.csv</code> and can be accidentally pulled in
     by sloppy feature code (rule 1).</p>
     <p style="margin:.3em 0 .3em">At submission time we predict all 16 days (Aug 16 → Aug 31)
@@ -318,16 +318,16 @@ x = 0  :  1 + x = 1   →  ln(1)  = 0        →  log1p(0)  = 0</pre>
         across time and lets the model train on the future of the days it's about to "predict,"
         producing scores that don't survive the real test.
         <span class="muted">In our data: the real test is Aug 16 → Aug 31, 2017 — 16 days right
-        after training ends. The development holdout mirrors that exactly: train on
+        after training ends. The development validation set mirrors that exactly: train on
         2013-01-01 → 2017-07-30, validate on 2017-07-31 → 2017-08-15 (same 16-day window, just
-        shifted back 16 days). <code>train_holdout_split()</code> performs the cut and asserts
+        shifted back 16 days). <code>train_validation_split()</code> performs the cut and asserts
         the ordering.</span>
       </li>
       <li style="margin:.7em 0"><strong>Consistent metric handling.</strong>
         Compute the metric identically across every model and every prediction — same transform,
         same clipping, same averaging — or the scoreboard stops being comparable.
         <span class="muted">In our data: Kaggle scores this competition as RMSLE on
-        <code>log1p(sales)</code>, so we do the same on every holdout. Sales can't be negative,
+        <code>log1p(sales)</code>, so we do the same on every validation score. Sales can't be negative,
         but a regression model can still emit a small negative — an unclipped negative crashes
         <code>log1p</code>, so we clip predictions to ≥ 0 first.
         <code>src/validation.py :: rmsle()</code> and <code>clip_nonneg()</code> are the only

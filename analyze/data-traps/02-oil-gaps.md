@@ -141,7 +141,7 @@ print('leading day fill:', float(of.loc['2013-01-01','oil']) == float(of.loc['20
 contemporaneous `onpromotion` feature (same-day, leak-free — `test.csv` ships it for the horizon)
 is selected by `make_promotion_features(df)` alongside it. (Note: the EDA showed oil's apparent
 sales effect is a **spurious trend artifact** — raw corr ≈ −0.62, ≈ 0 once detrended — so oil is
-included only as a *candidate* feature for the holdout to judge. See `../eda/05-promotions-oil.md`.)
+included only as a *candidate* feature for the validation set to judge. See `../eda/05-promotions-oil.md`.)
 
 **Lesson:** how you fill a gap encodes an assumption about *what you're allowed to know*.
 Forward-fill = "only the past." Interpolation = "I peeked at the future."

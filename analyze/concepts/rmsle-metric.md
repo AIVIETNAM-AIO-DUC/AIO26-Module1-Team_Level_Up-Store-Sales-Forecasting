@@ -188,4 +188,4 @@ Clipped to 0 it matches the actual `0` and contributes a clean zero error.
 
 **Where:** `src/validation.py :: rmsle()` and `clip_nonneg()`.
 
-**Related:** [validation-holdout.md](validation-holdout.md) · [baselines.md](baselines.md)
+**Related:** [validation.md](validation.md) · [baselines.md](baselines.md)

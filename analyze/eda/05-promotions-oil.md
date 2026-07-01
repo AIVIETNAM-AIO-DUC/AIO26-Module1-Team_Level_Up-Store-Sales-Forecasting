@@ -39,7 +39,7 @@ seeded below.
   while sales grew, so the raw correlation looks strong (≈ **−0.62**) but is a pure trend
   artifact: detrended (month-over-month % changes) it **collapses to ≈ 0.05 ≈ 0**. A bonus
   "debunk the spurious correlation" cell shows this (raw twin-axis lines vs scatter of changes).
-  May still matter per-region/family or lagged — the holdout decides.
+  May still matter per-region/family or lagged — the validation set decides.
 
 **Related:** `../data-traps/02-oil-gaps.md` · `../data-traps/06-transactions-past-only.md` ·
 [../concepts/leakage.md](../concepts/leakage.md)

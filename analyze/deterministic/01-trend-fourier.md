@@ -1,7 +1,8 @@
 # Deterministic — Trend + Fourier result (notebook `03_deterministic.ipynb`)
 
-**Scope:** what the deterministic stage actually produced — the first *learned* model's holdout
-score, how it compares to the baseline floor, and the two data traps building it exposed. This is
+**Scope:** what the deterministic stage actually produced — the first *learned* model's
+validation score, how it compares to the baseline floor, and the two data traps building it
+exposed. This is
 the result page; the *idea* of trend + Fourier seasonality lives in
 [`../concepts/seasonality-fourier.md`](../concepts/seasonality-fourier.md).
 
@@ -15,8 +16,8 @@ The same thin-notebook shape as the baseline — all logic in `src/`:
    Doubly important here: Fourier terms are computed from each row's calendar *position*, so a
    missing day would slide the weekly/annual waves out of phase. See
    [`../data-traps/01-missing-calendar-days.md`](../data-traps/01-missing-calendar-days.md).
-2. **Holdout split** — the *same* last 16 days (2017-07-31 → 2017-08-15) the baseline used. See
-   [`../concepts/validation-holdout.md`](../concepts/validation-holdout.md).
+2. **Validation split** — the *same* last 16 days (2017-07-31 → 2017-08-15) the baseline used. See
+   [`../concepts/validation.md`](../concepts/validation.md).
 3. **Build deterministic features** — `make_deterministic_features` produces a 16-column,
    date-only table over the full **train ∪ horizon** index (so the `trend` counter is continuous):
    `const`, `trend`, 3 weekly Fourier harmonics, 4 annual Fourier harmonics. See
@@ -24,7 +25,7 @@ The same thin-notebook shape as the baseline — all logic in `src/`:
 4. **Fit + predict** — a **separate `LinearRegression` per series**, in `log1p` space (inverted
    with `expm1`, clipped to `>= 0`). Each series learns its own level, trend slope, and seasonal
    amplitude.
-5. **Score + log** — RMSLE on the holdout, then append to `iteration_log.md`.
+5. **Score + log** — RMSLE on the validation set, then append to `iteration_log.md`.
 
 The logic is in `src/features.py` (`make_deterministic_features`) and `src/models.py`
 (`DeterministicModel`).
@@ -33,10 +34,10 @@ The logic is in `src/features.py` (`make_deterministic_features`) and `src/model
 
 | What | Value |
 |---|---|
-| **Holdout RMSLE** | **0.62188** |
+| **Validation RMSLE** | **0.62188** |
 | Baseline RMSLE (same window) | 0.61704 |
 | Relative change vs baseline | **−0.8% (essentially parity, slightly worse)** |
-| Holdout window | 2017-07-31 → 2017-08-15 (16 days) |
+| Validation window | 2017-07-31 → 2017-08-15 (16 days) |
 | Series scored | 1,782 |
 | Predictions | 28,512 rows, zero missing |
 | Prediction range | 0.00 → 88,843 |
@@ -84,21 +85,21 @@ Series that never sold predict 0 — the same near-zero fallback as the baseline
 
 ## Verify
 
-Reproduces the 0.62188 holdout RMSLE from the raw CSVs (run from the repo root):
+Reproduces the 0.62188 validation RMSLE from the raw CSVs (run from the repo root):
 
 ```bash
 uv run python -c "
 from src.data import load_train, reindex_series_gapfree
-from src.validation import train_holdout_split, rmsle, HORIZON_DAYS
+from src.validation import train_validation_split, rmsle, HORIZON_DAYS
 from src.models import DeterministicModel
 
 df = reindex_series_gapfree(load_train())
-train, holdout = train_holdout_split(df)
+train, val = train_validation_split(df)
 preds = DeterministicModel().fit(train).predict(HORIZON_DAYS)
 
-scored = holdout.merge(preds, on=['store_nbr', 'family', 'date'], how='inner')
+scored = val.merge(preds, on=['store_nbr', 'family', 'date'], how='inner')
 assert len(scored) == 28512 and scored[['sales','sales_pred']].isna().sum().sum() == 0
-print('holdout RMSLE:', round(rmsle(scored['sales'], scored['sales_pred']), 5))  # 0.62188
+print('validation RMSLE:', round(rmsle(scored['sales'], scored['sales_pred']), 5))  # 0.62188
 "
 ```
 

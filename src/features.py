@@ -289,7 +289,7 @@ def make_oil_features(
     analyze/data-traps/02-oil-gaps.md).
 
     Note the EDA found oil's apparent sales effect is largely a spurious trend artifact (raw corr
-    ≈ −0.62, ≈ 0 once detrended), so this is a *candidate* feature for the holdout to judge, not a
+    ≈ −0.62, ≈ 0 once detrended), so this is a *candidate* feature for the validation set to judge, not a
     proven driver.
 
     Args:
